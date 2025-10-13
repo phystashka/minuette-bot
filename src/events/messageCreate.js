@@ -1,15 +1,15 @@
-
 import { handleSpawnGuess } from '../utils/autoSpawn.js';
 import { addMessageToCache } from '../utils/messageCacheManager.js';
+import { loadDMMap, saveDMMap } from '../utils/dmMapStore.js';
 import { EmbedBuilder, ChannelType } from 'discord.js';
 
-
+let persistentDMMap = loadDMMap();
 
 export const name = 'messageCreate';
 export const once = false;
 
 const DM_FORWARD_CHANNEL_ID = '1423584192821985330';
-const ADMIN_USER_ID = '259347882052812800';
+const ADMIN_USER_ID = '1372601851781972038';
 
 export const execute = async (message) => {
   try {
@@ -60,16 +60,36 @@ export const execute = async (message) => {
             }
           }
 
-          const sentMessage = await forwardChannel.send({ embeds: [dmEmbed] });
+          const messageOptions = { embeds: [dmEmbed] };
           
-
-          if (!message.client.dmMessageMap) {
-            message.client.dmMessageMap = new Map();
+          if (message.attachments.size > 0) {
+            messageOptions.files = Array.from(message.attachments.values()).map(attachment => ({
+              attachment: attachment.url,
+              name: attachment.name
+            }));
           }
-          message.client.dmMessageMap.set(sentMessage.id, {
+
+          if (message.stickers.size > 0) {
+            const stickerUrls = Array.from(message.stickers.values()).map(sticker => {
+              return `https://media.discordapp.net/stickers/${sticker.id}.${sticker.format === 1 ? 'png' : sticker.format === 2 ? 'png' : 'gif'}`;
+            });
+            
+            if (!messageOptions.files) messageOptions.files = [];
+            stickerUrls.forEach((url, index) => {
+              messageOptions.files.push({
+                attachment: url,
+                name: `sticker_${index}.${url.includes('.gif') ? 'gif' : 'png'}`
+              });
+            });
+          }
+
+          const sentMessage = await forwardChannel.send(messageOptions);
+          
+          persistentDMMap.set(sentMessage.id, {
             originalUserId: message.author.id,
             originalMessageId: message.id
           });
+          saveDMMap(persistentDMMap);
 
           console.log(`✅ Forwarded DM from ${message.author.tag} to admin channel`);
         }
@@ -81,16 +101,49 @@ export const execute = async (message) => {
 
 
     if (message.guild && message.channel.id === DM_FORWARD_CHANNEL_ID && message.author.id === ADMIN_USER_ID) {
+      console.log(`Admin reply detected in DM forward channel`);
       if (message.reference && message.reference.messageId) {
+        console.log(`Reply to message ID: ${message.reference.messageId}`);
         try {
-          const dmMessageMap = message.client.dmMessageMap || new Map();
-          const mappedData = dmMessageMap.get(message.reference.messageId);
+          const mappedData = persistentDMMap.get(message.reference.messageId);
+          console.log(`Mapped data:`, mappedData);
           
           if (mappedData) {
             const targetUser = await message.client.users.fetch(mappedData.originalUserId);
             if (targetUser) {
               try {
-                await targetUser.send(message.content);
+                const replyOptions = {};
+                
+                if (message.content) {
+                  replyOptions.content = message.content;
+                }
+                
+                if (message.attachments.size > 0) {
+                  replyOptions.files = Array.from(message.attachments.values()).map(attachment => ({
+                    attachment: attachment.url,
+                    name: attachment.name
+                  }));
+                }
+
+                if (message.stickers.size > 0) {
+                  const stickerUrls = Array.from(message.stickers.values()).map(sticker => {
+                    return `https://media.discordapp.net/stickers/${sticker.id}.${sticker.format === 1 ? 'png' : sticker.format === 2 ? 'png' : 'gif'}`;
+                  });
+                  
+                  if (!replyOptions.files) replyOptions.files = [];
+                  stickerUrls.forEach((url, index) => {
+                    replyOptions.files.push({
+                      attachment: url,
+                      name: `sticker_${index}.${url.includes('.gif') ? 'gif' : 'png'}`
+                    });
+                  });
+                }
+                
+                if (!replyOptions.content && !replyOptions.files) {
+                  replyOptions.content = '*Empty message*';
+                }
+                
+                await targetUser.send(replyOptions);
                 await message.react('✅');
                 console.log(`Sent reply to ${targetUser.tag}`);
               } catch (dmError) {
@@ -143,4 +196,4 @@ export const execute = async (message) => {
   } catch (error) {
     console.error('Error in messageCreate event handler:', error);
   }
-}; 
+};
