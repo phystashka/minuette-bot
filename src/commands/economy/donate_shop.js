@@ -8,7 +8,6 @@ import { grantDonatorBackground, purchaseBackground } from '../../models/Profile
 import { query, getRow } from '../../utils/database.js';
 import { addExperience } from '../../utils/friendshipExperience.js';
 
-
 async function addFriendDuplicate(userId, friendId) {
   try {
 
@@ -65,17 +64,15 @@ export const data = new SlashCommandBuilder()
   })
   .setDMPermission(false);
 
-const BUNDLE_PRICE = 1500;
+const BUNDLE_PRICE = 750;
 const BUNDLE_PRICES = {
-  flawless: 1500,
-  sadako: 1500,
-  scitwi: 1500,
-  sunset_satan: 3000,
-  nightmare_star: 2000,
-  petunia_petals: 3000,
-  bat_pony_pack: 3000
+  flawless: 750,
+  scitwi: 750,
+  sunset_satan: 750,
+  nightmare_star: 750,
+  petunia_petals: 750,
+  bat_pony_pack: 750
 };
-
 
 function getBundlePrice(bundleType) {
   return BUNDLE_PRICES[bundleType] || BUNDLE_PRICE;
@@ -87,9 +84,10 @@ export async function execute(interaction) {
     const userDiamonds = await getDiamonds(userId);
 
     const embed = createEmbed({
-      title: 'Premium Bundles Shop',
-      description: `${interaction.user}, **Your <a:diamond:1423629073984524298>:** ${userDiamonds}\n\n**About Premium Bundles:**\nPremium bundles contain exclusive ponies, skins, and profile themes that cannot be obtained through regular gameplay.\n\n**<a:diamond:1423629073984524298> Prices:**\n• 500 <a:diamond:1423629073984524298> - **$15.00 USD**\n• 1,000 <a:diamond:1423629073984524298> - **$20.00 USD**\n• 1,500 <a:diamond:1423629073984524298> - **$25.00 USD**\n• 3,000 <a:diamond:1423629073984524298> - **$30.00 USD**\n• 5,000 <a:diamond:1423629073984524298> - **$50.00 USD**\nFor two any purchased bundles, you will automatically receive the Donater status with special features that can be found in /help\n\nDm **marepony** in discord for buying diamonds.`,
-      user: interaction.user
+      title: 'Welcome to Minuette Shop!!',
+      description: `${interaction.user}, **Your <a:diamond:1423629073984524298>:** ${userDiamonds}\n\n**About Premium Bundles:**\nPremium bundles contain exclusive ponies, skins, and profile themes that cannot be obtained through regular gameplay.\n\n**<a:diamond:1423629073984524298> Prices:**\n• 150 <a:diamond:1423629073984524298> - **$6.00 USD**\n• 500 <a:diamond:1423629073984524298> - **$20.00 USD**\n• 750 <a:diamond:1423629073984524298> - **$30.00 USD**\n\n**All bundles now cost only 750 <a:diamond:1423629073984524298>!**\n\n**Custom Services:**\n• **$25.00 USD** - Add your custom pony OC to the bot\n• **$35.00 USD** - Get your personal exclusive pony (any pony you want)\n\n**Minuette's Goal - Buy a Gala Concert Ticket:**\n🟦🟦🟦⬛⬛⬛⬛⬛ $425 / $1000\n\nFor two any purchased bundles, you will automatically receive the Donater status with special features that can be found in /help\n\nDm **marepony** in discord for buying diamonds.`,
+      user: interaction.user,
+      image: 'https://i.imgur.com/7M6LNCA.png'
     });
     
     const selectMenu = new StringSelectMenuBuilder()
@@ -97,37 +95,32 @@ export async function execute(interaction) {
       .setPlaceholder('Select a bundle to preview')
       .addOptions([
         {
-          label: 'Flawless Bundle - 1,500',
+          label: 'Flawless Bundle - 700',
           description: 'Exclusive Flawless pony and profile theme',
           value: 'flawless'
         },
         {
-          label: 'Sadako Bundle - 1,500', 
-          description: 'Exclusive Sadako pony',
-          value: 'sadako'
-        },
-        {
-          label: 'SciTwilight Bundle - 1,500',
+          label: 'SciTwilight Bundle - 700',
           description: 'Exclusive SciTwilight pony and profile theme',
           value: 'scitwi'
         },
         {
-          label: 'Nightmare Star Bundle - 2,000',
+          label: 'Nightmare Star Bundle - 700',
           description: 'Exclusive ancient solar nightmare pony',
           value: 'nightmare_star'
         },
         {
-          label: 'Sunset Satan Bundle - 3,000',
+          label: 'Sunset Satan Bundle - 700',
           description: 'Exclusive demonic Sunset Shimmer and theme',
           value: 'sunset_satan'
         },
         {
-          label: 'Petunia Petals Bundle - 3,000',
+          label: 'Petunia Petals Bundle - 700',
           description: 'Exclusive floral earth pony',
           value: 'petunia_petals'
         },
         {
-          label: 'Bat Pony Pack - 3,000',
+          label: 'Bat Pony Pack - 700',
           description: 'Four exclusive bat ponies collection',
           value: 'bat_pony_pack'
         }
@@ -178,16 +171,6 @@ async function handleBundlePreview(interaction) {
           description: `**Price:** ${getBundlePrice('flawless')} <a:diamond:1423629073984524298>\n\n**Contents:**\n• Flawless (Unique Pony)\n• Flawless Profile Theme\n\nA perfect bundle for those who seek perfection. The Flawless pony is an exclusive unique pony with stunning appearance, and the matching profile theme will make your profile stand out with elegant style.`,
           image: 'https://i.imgur.com/xFYaCbZ.png',
           color: 0xFFD700,
-          user: interaction.user
-        });
-        break;
-        
-      case 'sadako':
-        embed = createEmbed({
-          title: 'Sadako Bundle - Preview',
-          description: `**Price:** ${getBundlePrice('sadako')} <a:diamond:1423629073984524298>\n\n**Contents:**\n• Sadako (Unique Pony)\n\nA mysterious and haunting bundle featuring the exclusive Sadako pony. This unique pony brings an aura of mystery and supernatural charm to your collection.`,
-          image: 'https://i.imgur.com/x9XdCZm.png',
-          color: 0x800080,
           user: interaction.user
         });
         break;
@@ -257,37 +240,32 @@ async function handleBundlePreview(interaction) {
       .setPlaceholder('Select a bundle to preview')
       .addOptions([
         {
-          label: 'Flawless Bundle - 1,500',
+          label: 'Flawless Bundle - 700',
           description: 'Exclusive Flawless pony and profile theme',
           value: 'flawless'
         },
         {
-          label: 'Sadako Bundle - 1,500', 
-          description: 'Exclusive Sadako pony',
-          value: 'sadako'
-        },
-        {
-          label: 'SciTwilight Bundle - 1,500',
+          label: 'SciTwilight Bundle - 700',
           description: 'Exclusive SciTwilight pony and profile theme',
           value: 'scitwi'
         },
         {
-          label: 'Nightmare Star Bundle - 2,000',
+          label: 'Nightmare Star Bundle - 700',
           description: 'Exclusive ancient solar nightmare pony',
           value: 'nightmare_star'
         },
         {
-          label: 'Sunset Satan Bundle - 3,000',
+          label: 'Sunset Satan Bundle - 700',
           description: 'Exclusive demonic Sunset Shimmer and theme',
           value: 'sunset_satan'
         },
         {
-          label: 'Petunia Petals Bundle - 3,000',
+          label: 'Petunia Petals Bundle - 700',
           description: 'Exclusive floral earth pony',
           value: 'petunia_petals'
         },
         {
-          label: 'Bat Pony Pack - 3,000',
+          label: 'Bat Pony Pack - 700',
           description: 'Four exclusive bat ponies collection',
           value: 'bat_pony_pack'
         }
@@ -330,7 +308,6 @@ async function handleBundlePreview(interaction) {
   }
 }
 
-
 async function checkUserAlreadyHasBundle(userId, bundleType) {
   const alreadyHas = [];
   
@@ -345,7 +322,6 @@ async function checkUserAlreadyHasBundle(userId, bundleType) {
         if (hasFlawlessTheme) alreadyHas.push('Flawless theme');
         break;
         
-      case 'sadako':
 
         break;
         
@@ -377,7 +353,6 @@ async function checkUserAlreadyHasBundle(userId, bundleType) {
   
   return alreadyHas;
 }
-
 
 async function handleBundlePurchase(interaction) {
   try {
@@ -487,9 +462,6 @@ async function handleBundlePurchase(interaction) {
       case 'flawless':
         await handleFlawlessBundle(interaction, userId);
         break;
-      case 'sadako':
-        await handleSadakoBundle(interaction, userId);
-        break;
       case 'scitwi':
         await handleSciTwilightBundle(interaction, userId);
         break;
@@ -597,56 +569,7 @@ async function handleFlawlessBundle(interaction, userId) {
   });
 }
 
-async function handleSadakoBundle(interaction, userId) {
-  let rewardText = '**Sadako Bundle** unlocked!\n\n';
-  let compensationBits = 0;
-  let compensationHarmony = 0;
-  
 
-  const sadakoPony = await getRow('SELECT id FROM pony_friends WHERE name = ?', ['Sadako']);
-  if (sadakoPony) {
-    const friendResult = await addFriendDuplicate(userId, sadakoPony.id);
-    if (friendResult.success) {
-      rewardText += `**Sadako** has been added to your collection! (Copy #${friendResult.encounterCount}, Level ${friendResult.newLevel})\n`;
-    } else {
-      compensationBits += 1000;
-      compensationHarmony += 200;
-      rewardText += '**Compensation:** Failed to add Sadako\n';
-    }
-  } else {
-    compensationBits += 1000;
-    compensationHarmony += 200;
-    rewardText += '**Compensation:** Sadako pony not found\n';
-  }
-  
-
-  if (compensationBits > 0) {
-    await addBits(userId, compensationBits);
-    await addHarmony(userId, compensationHarmony);
-    
-
-    try {
-      const { addQuestProgress } = await import('../../utils/questUtils.js');
-      await addQuestProgress(userId, 'earn_bits', compensationBits);
-    } catch (questError) {
-      console.debug('Quest progress error:', questError.message);
-    }
-    
-    rewardText += `\n<:bits:1411354539935666197> **${compensationBits}** and <:harmony:1416514347789844541> **${compensationHarmony}** compensation added!`;
-  }
-  
-  const successEmbed = createEmbed({
-    title: 'Sadako Bundle - Purchase Complete!',
-    description: `${interaction.user}\n\n${rewardText}`,
-    color: 0xFF6B35,
-    user: interaction.user
-  });
-  
-  await interaction.editReply({ 
-    embeds: [successEmbed], 
-    components: [] 
-  });
-}
 
 async function handleSciTwilightBundle(interaction, userId) {
   let rewardText = '**SciTwilight Bundle** unlocked!\n\n';
@@ -961,7 +884,6 @@ async function handleBatPonyPackBundle(interaction, userStats) {
     components: [] 
   });
 }
-
 
 export { handleBundlePreview, handleBundlePurchase };
 

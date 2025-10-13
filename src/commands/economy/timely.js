@@ -569,7 +569,7 @@ export async function execute(interaction) {
     const embed = createEmbed({
       title: await t('timely.title', guildId),
       description: `${interaction.user}, ${fortune}\n\n${rewardText}`,
-      footer: { text: await t('timely.reward_footer', guildId, { amount: TIMELY_REWARD, cooldown: COOLDOWN_HOURS }) },
+      footer: { text: "Use /vote for bonus rewards! DM bot for support" },
       user: interaction.user,
       color: 0x03168f
     });

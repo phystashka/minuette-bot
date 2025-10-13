@@ -109,26 +109,12 @@ export async function execute(interaction) {
     );
 
 
-  const linkButtons = new ActionRowBuilder()
-    .addComponents(
-      new ButtonBuilder()
-        .setLabel('Fan Content Policy')
-        .setURL('https://company.hasbro.com/fan-content-policy')
-        .setStyle(ButtonStyle.Link),
-      new ButtonBuilder()
-        .setLabel('Terms & Conditions')
-        .setURL('https://shop.hasbro.com/en-us/terms')
-        .setStyle(ButtonStyle.Link),
-      new ButtonBuilder()
-        .setLabel('Hasbro Trademarks')
-        .setURL('https://trademarks.justia.com/owners/hasbro-inc-4543/')
-        .setStyle(ButtonStyle.Link)
-    );
+
 
   const response = await interaction.reply({ 
-    content: '🔗 **Join our Discord server:** https://discord.gg/ponies',
+    content: '**Use `/vote` for free rewards!** • 💬 **Need help? DM the bot!** • 🔗 **Discord:** https://discord.gg/ponies',
     embeds: [embed], 
-    components: [navigationButtons, linkButtons] 
+    components: [navigationButtons] 
   });
 
 
@@ -141,27 +127,27 @@ export async function execute(interaction) {
 
     if (i.customId === 'show_main_commands') {
       await i.update({
-        content: '🔗 **Join our Discord server:** https://discord.gg/ponies',
+        content: '**Use `/vote` for free rewards!** • 💬 **Need help? DM the bot!** • 🔗 **Discord:** https://discord.gg/ponies',
         embeds: [embed],
-        components: [navigationButtons, linkButtons]
+        components: [navigationButtons]
       });
     } else if (i.customId === 'show_fun_commands') {
       await i.update({
-        content: '🔗 **Join our Discord server:** https://discord.gg/ponies',
+        content: '**Use `/vote` for free rewards!** • 💬 **Need help? DM the bot!** • 🔗 **Discord:** https://discord.gg/ponies',
         embeds: [funEmbed],
-        components: [navigationButtons, linkButtons]
+        components: [navigationButtons]
       });
     } else if (i.customId === 'show_clan_commands') {
       await i.update({
-        content: '🔗 **Join our Discord server:** https://discord.gg/ponies',
+        content: '**Use `/vote` for free rewards!** • 💬 **Need help? DM the bot!** • 🔗 **Discord:** https://discord.gg/ponies',
         embeds: [clanEmbed],
-        components: [navigationButtons, linkButtons]
+        components: [navigationButtons]
       });
     } else if (i.customId === 'show_rarity_info') {
       await i.update({
-        content: '🔗 **Join our Discord server:** https://discord.gg/ponies',
+        content: '**Use `/vote` for free rewards!** • 💬 **Need help? DM the bot!** • 🔗 **Discord:** https://discord.gg/ponies',
         embeds: [rarityEmbed],
-        components: [navigationButtons, linkButtons]
+        components: [navigationButtons]
       });
     }
   });
@@ -193,7 +179,7 @@ export async function execute(interaction) {
       );
 
     interaction.editReply({
-      components: [disabledNavigationButtons, linkButtons]
+      components: [disabledNavigationButtons]
     }).catch(() => {});
   });
 }

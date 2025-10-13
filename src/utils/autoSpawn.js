@@ -709,6 +709,20 @@ export async function handleSpawnMessage(message) {
 
         await message.reply({ embeds: [embed] });
         
+        if (Math.random() < 0.03) {
+          const voteEmbed = createEmbed({
+            title: '💎 Support Minuette Bot!',
+            description: '**Love catching ponies?** Support the bot and get rewards!\n\n🗳️ **Use `/vote`** to get **10 diamonds** and **5 keys**!\n💬 **Need help or found a bug?** Send me a DM!\n\nYour support helps keep the bot running! ❤️',
+            color: 0x9b59b6,
+            user: message.author,
+            thumbnail: message.client.user.displayAvatarURL()
+          });
+          
+          setTimeout(() => {
+            message.channel.send({ embeds: [voteEmbed] }).catch(console.error);
+          }, 2000);
+        }
+        
         await updateLastSpawn(guildId);
 
       } catch (ponyError) {
@@ -845,6 +859,20 @@ export async function handleSpawnGuessModal(interaction) {
               components: [], 
               files: files
             });
+
+            if (Math.random() < 0.03) {
+              const voteEmbed = createEmbed({
+                title: '💎 Support Minuette Bot!',
+                description: '**Love catching ponies?** Support the bot and get rewards!\n\n🗳️ **Use `/vote`** to get **10 diamonds** and **5 keys**!\n💬 **Need help or found a bug?** Send me a DM!\n\nYour support helps keep the bot running! ❤️',
+                color: 0x9b59b6,
+                user: interaction.user,
+                thumbnail: interaction.client.user.displayAvatarURL()
+              });
+              
+              setTimeout(() => {
+                interaction.followUp({ embeds: [voteEmbed] }).catch(console.error);
+              }, 2000);
+            }
 
           } catch (updateError) {
             console.error('Error updating spawn message:', updateError);
@@ -997,6 +1025,19 @@ export async function handleSpawnGuess(message, guessedName) {
       
       await message.channel.send({ embeds: [successEmbed] });
       
+      if (Math.random() < 0.03) {
+        const voteEmbed = createEmbed({
+          title: '💎 Support Minuette Bot!',
+          description: '**Love catching ponies?** Support the bot and get rewards!\n\n🗳️ **Use `/vote`** to get **10 diamonds** and **5 keys**!\n💬 **Need help or found a bug?** Send me a DM!\n\nYour support helps keep the bot running! ❤️',
+          color: 0x9b59b6,
+          user: message.author,
+          thumbnail: message.client.user.displayAvatarURL()
+        });
+        
+        setTimeout(() => {
+          message.channel.send({ embeds: [voteEmbed] }).catch(console.error);
+        }, 2000);
+      }
 
       activeSpawns.delete(channelId);
       

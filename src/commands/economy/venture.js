@@ -327,7 +327,7 @@ async function sendCooldownNotification(userId, client) {
         title: '🔔 Venture Ready!',
         description: 'Your venture cooldown has expired! You can now use `/venture` again.',
         user: user,
-        footer: { text: "Did you find a bug? Use the /bug command and let me know!" }
+        footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
       })]
     });
     
@@ -367,7 +367,7 @@ export const data = new SlashCommandBuilder()
               description: 'You need to have a pony to go on ventures!\n\nUse `/pony create` to create your first pony.',
               user: interaction.user,
               thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-              footer: { text: "Did you find a bug? Use the /bug command and let me know!" }
+              footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
             })
           ],
           ephemeral: true
@@ -390,7 +390,7 @@ export const data = new SlashCommandBuilder()
                 description: await t('venture.cooldown_message', guildId, { minutes, seconds }),
                 user: interaction.user,
                 thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-                footer: { text: "Did you find a bug? Use the /bug command and let me know!" }
+                footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
               })
             ],
             ephemeral: true
@@ -539,7 +539,7 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
       color: embedColor,
       user: interaction.user,
       thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-      footer: { text: 'Did you find a bug? Use the /bug command and let me know!' }
+      footer: { text: 'Support the bot! Use /vote to get free diamonds and keys!' }
     });
     
     let hintUsed = false;

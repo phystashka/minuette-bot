@@ -42,7 +42,7 @@ export const execute = async (guild) => {
     
 
     try {
-      console.log(`� [GUILD DELETE] Sending guild leave log for ${guild.name || guild.id}`);
+      console.log(`[GUILD DELETE] Sending guild leave log for ${guild.name || guild.id}`);
       const embedData = createGuildLeaveEmbed(guild);
       const success = await sendGuildLog(guild.client, embedData, 'GUILD_DELETE');
       
