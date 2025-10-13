@@ -112,6 +112,7 @@ const init = async () => {
     console.log(chalk.green('OK'));
     
     console.log(chalk.green.bold('\n=== Bot Successfully Started ==='));
+    console.log(chalk.cyan('[INFO] Auto-deploy system active'));
     
   } catch (error) {
     console.error(chalk.red.bold('[CRITICAL ERROR] Bot initialization failed:'), error);
