@@ -1,0 +1,83 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Config files with sensitive data
+config.json
+config.js
+tokens.json
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+database.sqlite
+database.sqlite-journal
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# Images and assets
+src/public/
+temp_pony_images/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Debug files
+debug.log
+
+# PM2 process manager
+.pm2/
+
+# Runtime cache
+.cache/
+
+# Build directories
+dist/
+build/
+
+# ESLint cache
+.eslintcache
+
+# Application specific migration files
+debugProfilePonies.js
+fixProfilePonies.js
+runMigration.js
+migrateExperience.js
+migrateMarketTables.js
+
+# Deployment scripts
+deploy.sh
+start.sh
+*.key
+*.pem
+*.cert 
