@@ -604,7 +604,7 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
             image: ponyWithBackground ? `attachment://${ponyWithBackground.name}` : randomPony.image,
             user: interaction.user,
             thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-            footer: { text: 'Did you find a bug? Use the /bug command and let me know!' }
+            footer: { text: 'Support the bot! Use /vote to get free diamonds and keys!' }
           });
           const newActionRow = await getActionRow(guildId, interaction.user.id, { hint: true, showBell: true });
           
@@ -632,7 +632,7 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
                 description: await t('venture.super_hint_cost', guildId, { bits: currentPony.bits }),
                 user: interaction.user,
                 thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-                footer: { text: "Did you find a bug? Use the /bug command and let me know!" }
+                footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
               })],
               ephemeral: true
             });
@@ -659,7 +659,7 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
             image: ponyWithBackground ? `attachment://${ponyWithBackground.name}` : randomPony.image,
             user: interaction.user,
             thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-            footer: { text: "Did you find a bug? Use the /bug command and let me know!" }
+            footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
           });
           
 
@@ -721,7 +721,7 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
             description: `${randomMessage}\n\nYou found <:bits:1411354539935666197> **${bitsEarned} bits**!${rewardText}`,
             user: interaction.user,
             thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-            footer: { text: "Did you find a bug? Use the /bug command and let me know!" }
+            footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
           });
           
           const disabledRow = await getActionRow(guildId, interaction.user.id, { befriend: true, ignore: true, hint: true, superHint: true, showBell: false });
@@ -914,7 +914,7 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
               image: ponyWithBackground ? `attachment://${ponyWithBackground.name}` : randomPony.image,
               user: interaction.user,
               thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-              footer: { text: "Did you find a bug? Use the /bug command and let me know!" }
+              footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
             });
             
             const bellActionRow = await getBellOnlyActionRow(interaction.user.id);
@@ -1202,7 +1202,7 @@ export async function handleModal(interaction) {
         image: ponyData.image,
         user: interaction.user,
         thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-        footer: { text: "Did you find a bug? Use the /bug command and let me know!" }
+        footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
       });
       await interaction.message.edit({ embeds: [resultEmbed], components: [] });
       await interaction.deleteReply();
@@ -1217,7 +1217,7 @@ export async function handleModal(interaction) {
       image: ponyData.image,
       user: interaction.user,
       thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-      footer: { text: "Did you find a bug? Use the /bug command and let me know!" }
+      footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
     });
     
       await interaction.message.edit({ embeds: [wrongGuessEmbed], components: [] });
@@ -1330,7 +1330,7 @@ async function handleRegularVenture(interaction, pony) {
       description: `${randomMessage}\n\nYou found <:bits:1411354539935666197> **${bitsEarned} bits**!${rewardText}`,
       user: interaction.user,
       thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-      footer: { text: "Did you find a bug? Use the /bug command and let me know!" }
+      footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
     });
     
     return interaction.editReply({
