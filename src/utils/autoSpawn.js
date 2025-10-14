@@ -1382,6 +1382,8 @@ async function checkAndHandleAutocatch(message, guildId) {
     }
 
     const processLimit = Math.min(activeCharms.length, 3);
+    const successfulCatches = [];
+    
     for (let i = 0; i < processLimit; i++) {
       const charm = activeCharms[i];
       const userId = charm.user_id;
@@ -1398,17 +1400,143 @@ async function checkAndHandleAutocatch(message, guildId) {
         }
 
         await markAutocatchUsed(userId, guildId, spawn.messageId);
-        await handleAutocatch(message, spawn, userId);
+        const result = await handleAutocatchSilent(message, spawn, userId);
         
-        console.log(`[AUTOCATCH] Charm of Binding activated for user ${userId} in guild ${guildId}`);
-        break; 
+        if (result.success) {
+          successfulCatches.push({
+            userId: userId,
+            user: result.user,
+            bitsReward: result.bitsReward,
+            resourceText: result.resourceText
+          });
+          console.log(`[AUTOCATCH] Charm of Binding activated for user ${userId} in guild ${guildId}`);
+        }
       } catch (userError) {
         console.error(`[AUTOCATCH] Error processing user ${userId}:`, userError.message);
         continue; 
       }
     }
+    
+    if (successfulCatches.length > 0) {
+      await sendMultipleAutocatchMessage(message, spawn, successfulCatches);
+    }
   } catch (error) {
     console.error('[AUTOCATCH] Error in checkAndHandleAutocatch:', error);
+  }
+}
+
+async function handleAutocatchSilent(message, spawn, userId) {
+  try {
+    const guild = message.guild;
+    const discordUser = await guild.members.fetch(userId).then(member => member.user).catch(() => null);
+    
+    if (!discordUser) {
+      console.error(`[AUTOCATCH] Could not fetch Discord user ${userId}`);
+      return { success: false };
+    }
+    
+    const pony = await getPony(userId);
+    const duplicateMultiplier = await getPonyDuplicateMultiplier(pony.user_id);
+    
+    const newFriend = await addFriend(pony.user_id, spawn.pony.id);
+    
+    if (duplicateMultiplier > 1 && newFriend) {
+      for (let i = 1; i < duplicateMultiplier; i++) {
+        await addFriend(pony.user_id, spawn.pony.id);
+      }
+    }
+
+    const bitsReward = Math.floor(Math.random() * 21) + 10;
+    await addBits(pony.user_id, bitsReward);
+    
+    try {
+      const { addQuestProgress } = await import('./questUtils.js');
+      if (newFriend && newFriend.isNew) {
+        await addQuestProgress(pony.user_id, 'get_ponies');
+      }
+      await addQuestProgress(pony.user_id, 'earn_bits', bitsReward);
+    } catch (questError) {
+      console.debug('Quest progress error in autocatch:', questError.message);
+    }
+
+    await addHarmony(pony.user_id, 5, 'Autocaught a pony with Charm of Binding');
+
+    let resourceText = '';
+    if (Math.random() <= 0.05) {
+      await addCases(pony.user_id, 1);
+      resourceText += '\n<:case:1417301084291993712> You got a case!';
+    }
+
+    return {
+      success: true,
+      user: discordUser,
+      bitsReward: bitsReward,
+      resourceText: resourceText
+    };
+
+  } catch (error) {
+    console.error('Error in handleAutocatchSilent:', error);
+    return { success: false };
+  }
+}
+
+async function sendMultipleAutocatchMessage(message, spawn, catches) {
+  try {
+    const displayLimit = 5;
+    const displayCatches = catches.slice(0, displayLimit);
+    const hasMore = catches.length > displayLimit;
+    
+    let userMentions;
+    if (hasMore) {
+      userMentions = displayCatches.map(c => c.user.toString()).join(', ') + '...';
+    } else {
+      userMentions = displayCatches.map(c => c.user.toString()).join(', ');
+    }
+    
+    const rewardsText = displayCatches.map(c => 
+      `**${c.user.displayName}**: <:bits:1411354539935666197> +${c.bitsReward} bits, <:harmony:1416514347789844541> +5 harmony${c.resourceText}`
+    ).join('\n') + (hasMore ? `\n... and other ${catches.length - displayLimit} users` : '');
+    
+    const title = catches.length === 1 ? 'Charm of Binding Activated!' : 'Charms of Binding Activated!';
+    const description = catches.length === 1 
+      ? `${userMentions}, your **Charm of Binding** automatically caught **${spawn.pony.name}**!\n\n**Rewards:**\n${rewardsText}\n\n*Others can still try to catch this pony manually.*`
+      : `${userMentions}, your **Charms of Binding** automatically caught **${spawn.pony.name}**!\n\n**Rewards:**\n${rewardsText}\n\n*Others can still try to catch this pony manually.*`;
+
+    const embed = createEmbed({
+      title: title,
+      description: description,
+      color: 0x8A2BE2,
+      user: catches[0].user
+    });
+
+    if (spawn.pony.image) {
+      embed.setThumbnail(spawn.pony.image);
+    }
+
+    await message.channel.send({ embeds: [embed] });
+    if (Math.random() <= 0.03) {
+      const voteEmbed = createEmbed({
+        title: '🗳️ Support Minuette Bot!',
+        description: `You caught a pony! Consider voting for the bot to get **10 <a:diamond:1423629073984524298> diamonds** and **5 <:case:1417301084291993712> cases** as a reward!\n\nUse \`/vote\` to get the voting link!`,
+        color: 0x3498DB,
+        user: catches[0].user
+      });
+
+      setTimeout(async () => {
+        try {
+          await message.channel.send({ embeds: [voteEmbed] });
+        } catch (error) {
+          console.debug('Failed to send vote promotion:', error.message);
+        }
+      }, 2000);
+    }
+
+    if (catches.length > 0) {
+      await resetChannelAfterSpawn(spawn.channelId);
+    }
+
+  } catch (error) {
+    console.error('Error in sendMultipleAutocatchMessage:', error);
   }
 }
 
@@ -1487,7 +1615,7 @@ async function handleAutocatch(message, spawn, userId) {
       }, 2000);
     }
 
-    await resetChannelAfterSpawn(spawn.guildId, spawn.channelId);
+    await resetChannelAfterSpawn(spawn.channelId);
 
   } catch (error) {
     console.error('Error in handleAutocatch:', error);
