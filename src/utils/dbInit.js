@@ -28,7 +28,7 @@ export const setupDatabase = async () => {
     const connected = await initDatabase();
     
     if (!connected) {
-      console.error('Failed to connect to database. Check your database configuration.');
+      console.error('Failed to connect to database.');
       return false;
     }
 
@@ -73,6 +73,8 @@ export const setupDatabase = async () => {
     
 
     await createVoteTable();
+    
+    await createArtifactsTables();
     
 
     const { createRebirthTable } = await import('../commands/economy/rebirth.js');
@@ -148,5 +150,55 @@ async function updatePonyTableSchema() {
     }
   } catch (error) {
     console.error('Ошибка при обновлении схемы таблицы ponies:', error.message);
+  }
+}
+
+async function createArtifactsTables() {
+  try {
+    const createActiveArtifactsTable = `
+      CREATE TABLE IF NOT EXISTS active_artifacts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        guild_id TEXT NOT NULL,
+        artifact_type TEXT NOT NULL,
+        expires_at BIGINT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+    
+    await query(createActiveArtifactsTable);
+    
+    const createAutocatchHistoryTable = `
+      CREATE TABLE IF NOT EXISTS autocatch_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        guild_id TEXT NOT NULL,
+        spawn_id TEXT NOT NULL,
+        caught_at BIGINT NOT NULL,
+        UNIQUE(user_id, guild_id, spawn_id)
+      )
+    `;
+    
+    await query(createAutocatchHistoryTable);
+
+    const createIndexes = [
+      'CREATE INDEX IF NOT EXISTS idx_active_artifacts_user_type ON active_artifacts(user_id, artifact_type)',
+      'CREATE INDEX IF NOT EXISTS idx_active_artifacts_guild_type ON active_artifacts(guild_id, artifact_type)',
+      'CREATE INDEX IF NOT EXISTS idx_active_artifacts_expires ON active_artifacts(expires_at)',
+      'CREATE INDEX IF NOT EXISTS idx_autocatch_history_user_guild ON autocatch_history(user_id, guild_id)',
+      'CREATE INDEX IF NOT EXISTS idx_autocatch_history_caught_at ON autocatch_history(caught_at)'
+    ];
+    
+    for (const indexSQL of createIndexes) {
+      try {
+        await query(indexSQL);
+      } catch (indexError) {
+        console.log('Index might already exist:', indexError.message);
+      }
+    }
+    
+    console.log('✅ Artifacts tables created successfully');
+  } catch (error) {
+    console.error('❌ Error creating artifacts tables:', error.message);
   }
 }

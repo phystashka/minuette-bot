@@ -83,6 +83,9 @@ export const execute = async (client) => {
 
     startAutoSpawn(client);
     
+    const { initializeActiveServerCharms } = await import('../utils/autoSpawn.js');
+    await initializeActiveServerCharms(client);
+    
 
     const promises = client.guilds.cache.map(guild => saveGuildInfo(guild));
     await Promise.all(promises);

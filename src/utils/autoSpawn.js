@@ -11,6 +11,13 @@ import { addHarmony } from '../models/HarmonyModel.js';
 import { getUsersForPonyAlert } from '../models/PonyAlertModel.js';
 import { isBloodMoonCurrentlyActive } from '../models/BloodMoonModel.js';
 import { getUserRebirth, getPonyDuplicateMultiplier, canGetNewPony } from '../commands/economy/rebirth.js';
+import { 
+  hasActiveCharmOfBinding, 
+  hasActiveBlessingOfFortuna, 
+  hasActiveServerCharms,
+  markAutocatchUsed, 
+  hasUsedAutocatch 
+} from './artifactManager.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -18,6 +25,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export const activeSpawns = new Map();
+
+export const activeServerCharmsIntervals = new Map();
 
 
 const RARITY_EMOJIS = {
@@ -90,6 +99,59 @@ const RARITY_CHANCES = {
   EVENT: 0.00025
 };
 
+function calculateCorrectLettersPercentage(guessedName, correctName) {
+  const guess = guessedName.toLowerCase().replace(/\s/g, '');
+  const correct = correctName.toLowerCase().replace(/\s/g, '');
+  
+  if (guess.length === 0) return 0;
+  
+  const correctLetters = {};
+  for (let char of correct) {
+    correctLetters[char] = (correctLetters[char] || 0) + 1;
+  }
+  
+  let matches = 0;
+  const usedLetters = {};
+  
+  for (let char of guess) {
+    if (correctLetters[char] && (!usedLetters[char] || usedLetters[char] < correctLetters[char])) {
+      matches++;
+      usedLetters[char] = (usedLetters[char] || 0) + 1;
+    }
+  }
+  
+  return (matches / guess.length) * 100;
+}
+function generateNameHint(correctName) {
+  const name = correctName.toLowerCase();
+  const nameLength = name.length;
+  const lettersToShow = Math.ceil(nameLength * 0.75);
+  
+  const indices = Array.from({ length: nameLength }, (_, i) => i);
+  
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  
+  const showIndices = indices.slice(0, lettersToShow).sort((a, b) => a - b);
+  
+  let hint = '';
+  for (let i = 0; i < nameLength; i++) {
+    if (i > 0 && name[i-1] !== ' ' && name[i] !== ' ') {
+      hint += ' '; 
+    }
+    
+    if (showIndices.includes(i)) {
+      hint += name[i] === ' ' ? '   ' : name[i].toUpperCase(); 
+    } else {
+      hint += name[i] === ' ' ? '   ' : '_';
+    }
+  }
+  
+  return hint;
+}
+
 async function getRandomTitle(rarity, guildId, background = null, isUnique = false) {
   const titleKeys = {
     BASIC: ['venture.title_basic_1', 'venture.title_basic_2', 'venture.title_basic_3', 'venture.title_basic_4'],
@@ -129,11 +191,27 @@ function getMaskedName(name, revealed = []) {
   }).join(' ');
 }
 
-function selectRarity() {
+async function selectRarity(guildId = null) {
   const random = Math.random();
   let cumulativeChance = 0;
   
-  for (const [rarity, chance] of Object.entries(RARITY_CHANCES)) {
+  let modifiedChances = { ...RARITY_CHANCES };
+  if (guildId && await hasActiveBlessingOfFortuna(guildId)) {
+    const allRarities = Object.keys(modifiedChances).filter(rarity => rarity !== 'BASIC');
+    for (const rarity of allRarities) {
+      if (modifiedChances[rarity]) {
+        modifiedChances[rarity] *= 1.35;
+      }
+    }
+
+    const totalRareChance = allRarities.reduce((sum, rarity) => 
+      sum + (modifiedChances[rarity] || 0), 0
+    );
+    
+    modifiedChances.BASIC = Math.max(0, 1.0 - totalRareChance);
+  }
+  
+  for (const [rarity, chance] of Object.entries(modifiedChances)) {
     cumulativeChance += chance;
     if (random <= cumulativeChance) {
       return rarity;
@@ -154,9 +232,7 @@ const EXCLUDED_EVENT_PONIES = [
 
 const EXCLUDED_PONIES = [
   'Aryanne',
-  'Peachy Sprinkle',
   'Pumpkin Seed',
-  'Nocturn'
 ];
 
 
@@ -239,7 +315,7 @@ const GHOST_ENDINGS = [
   { message: "Its shape dissolved into the night, leaving behind the scent of pumpkin and sugar.", reward: "pumpkins" }
 ];
 
-async function generateRandomPony() {
+async function generateRandomPony(guildId = null) {
   try {
 
     const isBloodMoon = await isBloodMoonCurrentlyActive();
@@ -267,7 +343,7 @@ async function generateRandomPony() {
       }
     }
     
-    const selectedRarity = selectRarity();
+    const selectedRarity = await selectRarity(guildId);
     let poniesOfRarity = await getPonyFriendsByRarity(selectedRarity);
     
 
@@ -542,7 +618,7 @@ async function spawnPony(client, guildId, channelId) {
       return;
     }
     
-    const pony = await generateRandomPony();
+    const pony = await generateRandomPony(guildId);
 
 
     let ponyWithBackground = null;
@@ -589,7 +665,7 @@ async function spawnPony(client, guildId, channelId) {
       timestamp: Date.now()
     });
 
-
+    await checkAndHandleAutocatch(message, guildId);
 
   } catch (error) {
     console.error(`❌ Error spawning pony in ${guild?.name || guildId}:`, error);
@@ -604,6 +680,8 @@ export async function handleSpawnMessage(message) {
     if (!spawn) {
       return;
     }
+    
+    console.log(`DEBUG: Processing message "${message.content}" in channel with active spawn "${spawn.pony.name}"`);
     
 
 
@@ -632,10 +710,43 @@ export async function handleSpawnMessage(message) {
         await message.reply('❌ You need to create a pony first with `/equestria` before you can catch ponies!');
         return;
       }
+
+      const { query } = await import('./database.js');
+      const activeCharm = await query(
+        'SELECT 1 FROM active_artifacts WHERE user_id = ? AND guild_id = ? AND artifact_type = ? AND expires_at > ?',
+        [userId, message.guild.id, 'charm_of_binding', Date.now()]
+      );
+      
+      if (activeCharm && activeCharm.length > 0) {
+        await message.reply({
+          embeds: [createEmbed({
+            title: '🔮 Charm of Binding Active!',
+            description: `You have an active **Charm of Binding** that automatically catches ponies for you. Manual catching is disabled while the charm is active.`,
+            user: message.author,
+            color: 0x8A2BE2
+          })]
+        });
+        return;
+      }
       
       if (guessedName === correctName) {
+        const finalCharmCheck = await query(
+          'SELECT 1 FROM active_artifacts WHERE user_id = ? AND guild_id = ? AND artifact_type = ? AND expires_at > ?',
+          [userId, message.guild.id, 'charm_of_binding', Date.now()]
+        );
         
-
+        if (finalCharmCheck && finalCharmCheck.length > 0) {
+          await message.reply({
+            embeds: [createEmbed({
+              title: '🔮 Charm of Binding Active!',
+              description: `You have an active **Charm of Binding** that automatically catches ponies for you. Manual catching is disabled while the charm is active.`,
+              user: message.author,
+              color: 0x8A2BE2
+            })]
+          });
+          return;
+        }
+        
         const slotCheck = await canGetNewPony(userId);
         if (!slotCheck.canGet) {
           await message.reply({
@@ -723,12 +834,34 @@ export async function handleSpawnMessage(message) {
           }, 2000);
         }
         
-        await updateLastSpawn(guildId);
+        await resetChannelAfterSpawn(channelId);
 
       } catch (ponyError) {
         console.error('Error processing successful catch:', ponyError);
         await message.reply('❌ An error occurred while processing your catch. Please try again later.');
       }
+      } else {
+        const correctPercentage = calculateCorrectLettersPercentage(guessedName, correctName);
+        
+        console.log(`DEBUG: Guessed: "${guessedName}", Correct: "${correctName}", Percentage: ${correctPercentage}%`);
+        
+        if (correctPercentage >= 50) {
+          const nameHint = generateNameHint(spawn.pony.name);
+          
+          console.log(`DEBUG: Showing hint for ${spawn.pony.name}: ${nameHint}`);
+          
+          const hintEmbed = createEmbed({
+            title: '💛 Just a little more!',
+            description: `You're close to the correct answer! Here's a hint:\n\n\`\`\`${nameHint}\`\`\`\n\nTry again!`,
+            color: 0xFFD700,
+            user: message.author,
+            thumbnail: spawn.pony.image
+          });
+          
+          await message.reply({ embeds: [hintEmbed] });
+        } else {
+          console.log(`DEBUG: Percentage ${correctPercentage}% is less than 50%, no hint shown`);
+        }
       }
     }
 
@@ -740,7 +873,27 @@ export async function handleSpawnMessage(message) {
 
 export async function handleSpawnGuessModal(interaction) {
   try {
+    const userId = interaction.user.id;
     const guildId = interaction.guild.id;
+    
+    const { query } = await import('./database.js');
+    const activeCharm = await query(
+      'SELECT 1 FROM active_artifacts WHERE user_id = ? AND guild_id = ? AND artifact_type = ? AND expires_at > ?',
+      [userId, guildId, 'charm_of_binding', Date.now()]
+    );
+    
+    if (activeCharm && activeCharm.length > 0) {
+      return await interaction.reply({
+        embeds: [createEmbed({
+          title: '🔮 Charm of Binding Active!',
+          description: `You have an active **Charm of Binding** that automatically catches ponies for you. Manual catching is disabled while the charm is active.`,
+          user: interaction.user,
+          color: 0x8A2BE2
+        })],
+        ephemeral: true
+      });
+    }
+    
     const spawn = activeSpawns.get(guildId);
     
     if (!spawn) {
@@ -757,9 +910,24 @@ export async function handleSpawnGuessModal(interaction) {
 
     
     if (guessedName === correctName) {
-      const userId = interaction.user.id;
-      
 
+      const finalCharmCheck = await query(
+        'SELECT 1 FROM active_artifacts WHERE user_id = ? AND guild_id = ? AND artifact_type = ? AND expires_at > ?',
+        [userId, guildId, 'charm_of_binding', Date.now()]
+      );
+      
+      if (finalCharmCheck && finalCharmCheck.length > 0) {
+        return await interaction.reply({
+          embeds: [createEmbed({
+            title: '🔮 Charm of Binding Active!',
+            description: `You have an active **Charm of Binding** that automatically catches ponies for you. Manual catching is disabled while the charm is active.`,
+            user: interaction.user,
+            color: 0x8A2BE2
+          })],
+          ephemeral: true
+        });
+      }
+      
       const slotCheck = await canGetNewPony(userId);
       if (!slotCheck.canGet) {
         return await interaction.reply({
@@ -775,10 +943,10 @@ export async function handleSpawnGuessModal(interaction) {
       
       await interaction.deferUpdate();
 
-      activeSpawns.delete(channelId);
+      activeSpawns.delete(spawn.channelId);
       
 
-      await resetChannelAfterSpawn(spawn.guildId, channelId);
+      await resetChannelAfterSpawn(spawn.guildId, spawn.channelId);
 
       
       try {
@@ -909,11 +1077,34 @@ export async function handleSpawnGuessModal(interaction) {
         }
       }
     } else {
-
-      await interaction.reply({
-        content: `❌ Wrong guess! **${guessedName}** is not the correct name. Try again!`,
-        ephemeral: true
-      });
+      const correctPercentage = calculateCorrectLettersPercentage(guessedName, correctName);
+      
+      console.log(`DEBUG Modal: Guessed: "${guessedName}", Correct: "${correctName}", Percentage: ${correctPercentage}%`);
+      
+      if (correctPercentage >= 50) {
+        const nameHint = generateNameHint(spawn.pony.name);
+        
+        console.log(`DEBUG Modal: Showing hint for ${spawn.pony.name}: ${nameHint}`);
+        
+        const hintEmbed = createEmbed({
+          title: '💛 Just a little more!',
+          description: `You're close to the correct answer! Here's a hint:\n\n\`\`\`${nameHint}\`\`\`\n\nTry again!`,
+          color: 0xFFD700, 
+          user: interaction.user,
+          thumbnail: spawn.pony.image
+        });
+        
+        await interaction.reply({
+          embeds: [hintEmbed],
+          ephemeral: true
+        });
+      } else {
+        console.log(`DEBUG Modal: Percentage ${correctPercentage}% is less than 50%, showing normal error`);
+        await interaction.reply({
+          content: `❌ Wrong guess! **${guessedName}** is not the correct name. Try again!`,
+          ephemeral: true
+        });
+      }
     }
   } catch (error) {
     console.error('Error handling spawn guess modal:', error);
@@ -1145,4 +1336,234 @@ export async function spawnTestPony(client, guildId, channelId, pony) {
     console.error('Error in spawnTestPony:', error);
     return false;
   }
+}
+
+const activeCharmsCache = new Map();
+const CACHE_DURATION = 30000; 
+
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of activeCharmsCache.entries()) {
+    if (now - value.timestamp > CACHE_DURATION * 2) { 
+      activeCharmsCache.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
+async function checkAndHandleAutocatch(message, guildId) {
+  try {
+    const cacheKey = `charms_${guildId}`;
+    const cached = activeCharmsCache.get(cacheKey);
+    let activeCharms;
+    
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      activeCharms = cached.data;
+    } else {
+      const { query } = await import('./database.js');
+      activeCharms = await query(
+        'SELECT user_id FROM active_artifacts WHERE guild_id = ? AND artifact_type = ? AND expires_at > ?',
+        [guildId, 'charm_of_binding', Date.now()]
+      );
+
+      activeCharmsCache.set(cacheKey, {
+        data: activeCharms || [],
+        timestamp: Date.now()
+      });
+    }
+
+    if (!activeCharms || activeCharms.length === 0) {
+      return;
+    }
+
+    const spawn = activeSpawns.get(message.channel.id);
+    if (!spawn) {
+      return;
+    }
+
+    const processLimit = Math.min(activeCharms.length, 3);
+    for (let i = 0; i < processLimit; i++) {
+      const charm = activeCharms[i];
+      const userId = charm.user_id;
+      
+      try {
+        const alreadyUsed = await hasUsedAutocatch(userId, guildId, spawn.messageId);
+        if (alreadyUsed) {
+          continue;
+        }
+
+        const slotCheck = await canGetNewPony(userId);
+        if (!slotCheck.canGet) {
+          continue;
+        }
+
+        await markAutocatchUsed(userId, guildId, spawn.messageId);
+        await handleAutocatch(message, spawn, userId);
+        
+        console.log(`[AUTOCATCH] Charm of Binding activated for user ${userId} in guild ${guildId}`);
+        break; 
+      } catch (userError) {
+        console.error(`[AUTOCATCH] Error processing user ${userId}:`, userError.message);
+        continue; 
+      }
+    }
+  } catch (error) {
+    console.error('[AUTOCATCH] Error in checkAndHandleAutocatch:', error);
+  }
+}
+
+async function handleAutocatch(message, spawn, userId) {
+  try {
+    const guild = message.guild;
+    const discordUser = await guild.members.fetch(userId).then(member => member.user).catch(() => null);
+    
+    if (!discordUser) {
+      console.error(`[AUTOCATCH] Could not fetch Discord user ${userId}`);
+      return;
+    }
+    
+    // Don't delete spawn - other players should still be able to catch the pony manually
+    // activeSpawns.delete(spawn.channelId);
+    
+    const pony = await getPony(userId);
+    const duplicateMultiplier = await getPonyDuplicateMultiplier(pony.user_id);
+    
+    const newFriend = await addFriend(pony.user_id, spawn.pony.id);
+    
+    if (duplicateMultiplier > 1 && newFriend) {
+      for (let i = 1; i < duplicateMultiplier; i++) {
+        await addFriend(pony.user_id, spawn.pony.id);
+      }
+    }
+
+    const bitsReward = Math.floor(Math.random() * 21) + 10;
+    await addBits(pony.user_id, bitsReward);
+    
+    try {
+      const { addQuestProgress } = await import('./questUtils.js');
+      if (newFriend && newFriend.isNew) {
+        await addQuestProgress(pony.user_id, 'get_ponies');
+      }
+      await addQuestProgress(pony.user_id, 'earn_bits', bitsReward);
+    } catch (questError) {
+      console.debug('Quest progress error in autocatch:', questError.message);
+    }
+
+    await addHarmony(pony.user_id, 5, 'Autocaught a pony with Charm of Binding');
+
+    let resourceText = '';
+    if (Math.random() <= 0.05) {
+      await addCases(pony.user_id, 1);
+      resourceText += '\n<:case:1417301084291993712> You got a case!';
+    }
+
+    const embed = createEmbed({
+      title: 'Charm of Binding Activated!',
+      description: `${discordUser}, your **Charm of Binding** automatically caught **${spawn.pony.name}**!\n\n**Rewards:**\n<:bits:1411354539935666197> +${bitsReward} bits\n<:harmony:1416514347789844541> +5 harmony${resourceText}\n\n*Others can still try to catch this pony manually.*`,
+      color: 0x8A2BE2,
+      user: discordUser
+    });
+
+    if (spawn.pony.image) {
+      embed.setThumbnail(spawn.pony.image);
+    }
+
+    await message.channel.send({ embeds: [embed] });
+
+    if (Math.random() <= 0.03) {
+      const voteEmbed = createEmbed({
+        title: '🗳️ Support Minuette Bot!',
+        description: `${discordUser}, you caught a pony! Consider voting for the bot to get **10 <a:diamond:1423629073984524298> diamonds** and **5 <:case:1417301084291993712> cases** as a reward!\n\nUse \`/vote\` to get the voting link!`,
+        color: 0x3498DB,
+        user: discordUser
+      });
+
+      setTimeout(async () => {
+        try {
+          await message.channel.send({ embeds: [voteEmbed] });
+        } catch (error) {
+          console.debug('Failed to send vote promotion:', error.message);
+        }
+      }, 2000);
+    }
+
+    await resetChannelAfterSpawn(spawn.guildId, spawn.channelId);
+
+  } catch (error) {
+    console.error('Error in handleAutocatch:', error);
+  }
+}
+
+export function startServerCharms(client, guildId) {
+  if (activeServerCharmsIntervals.has(guildId)) {
+    console.log(`[SERVER CHARMS] Already running for guild ${guildId}, skipping...`);
+    return activeServerCharmsIntervals.get(guildId);
+  }
+
+  const interval = setInterval(async () => {
+    try {
+      if (!(await hasActiveServerCharms(guildId))) {
+        clearInterval(interval);
+        activeServerCharmsIntervals.delete(guildId);
+        console.log(`[SERVER CHARMS] Ended for guild ${guildId}`);
+        return;
+      }
+    
+      const channels = await getAllActiveSpawnChannels();
+      const guildChannels = channels.filter(ch => ch.guild_id === guildId);
+      
+      if (guildChannels.length === 0) {
+        console.log(`[SERVER CHARMS] No spawn channels configured for guild ${guildId}`);
+        return;
+      }
+
+      const randomChannel = guildChannels[Math.floor(Math.random() * guildChannels.length)];
+      
+      console.log(`[SERVER CHARMS] Spawning in channel ${randomChannel.channel_id} for guild ${guildId}`);
+      await spawnPony(client, guildId, randomChannel.channel_id);
+      
+    } catch (error) {
+      console.error('[SERVER CHARMS] Error:', error);
+    }
+  }, 5000); 
+
+  activeServerCharmsIntervals.set(guildId, interval);
+  console.log(`[SERVER CHARMS] Started for guild ${guildId}`);
+  return interval;
+}
+
+export function stopServerCharms(guildId) {
+  const interval = activeServerCharmsIntervals.get(guildId);
+  if (interval) {
+    clearInterval(interval);
+    activeServerCharmsIntervals.delete(guildId);
+    console.log(`[SERVER CHARMS] Manually stopped for guild ${guildId}`);
+    return true;
+  }
+  return false;
+}
+
+export async function initializeActiveServerCharms(client) {
+  try {
+    const { query } = await import('./database.js');
+    const activeServerCharms = await query(
+      'SELECT DISTINCT guild_id FROM active_artifacts WHERE artifact_type = ? AND expires_at > ?',
+      ['server_charms', Date.now()]
+    );
+    
+    if (activeServerCharms && activeServerCharms.length > 0) {
+      console.log(`[SERVER CHARMS] Initializing ${activeServerCharms.length} active Server Charms...`);
+      for (const artifact of activeServerCharms) {
+        startServerCharms(client, artifact.guild_id);
+      }
+    }
+  } catch (error) {
+    console.error('[SERVER CHARMS] Error initializing active Server Charms:', error);
+  }
+}
+
+export function clearAutocatchCache(guildId) {
+  const cacheKey = `charms_${guildId}`;
+  activeCharmsCache.delete(cacheKey);
+  console.log(`[AUTOCATCH] Cache cleared for guild ${guildId}`);
 }

@@ -49,7 +49,7 @@ import {
 export const name = 'interactionCreate';
 export const once = false;
 
-const economyCommands = ['venture', 'resources', 'friendship', 'zecora_hut', 'crime', 'balance', 'protection', 'leaders', 'farm', 'knock', 'adopt', 'battle', 'case', 'decorate', 'feed', 'inventory', 'myponies', 'profile', 'timely', 'trade', 'transfer_bits', 'bug', 'donate', 'pony_alerts', 'set_spawn', 'remove_spawn', 'clan', 'clan_invite', 'clan_emblem', 'clan_vice', 'clan_viceremove'];
+const economyCommands = ['venture', 'resources', 'friendship', 'zecora_hut', 'crime', 'balance', 'protection', 'leaders', 'farm', 'knock', 'adopt', 'battle', 'case', 'decorate', 'feed', 'inventory', 'myponies', 'profile', 'timely', 'trade', 'transfer_bits', 'bug', 'donate', 'pony_alerts', 'set_spawn', 'remove_spawn', 'clan', 'clan_invite', 'clan_emblem', 'clan_vice', 'clan_viceremove', 'artifacts'];
 
 export const execute = async (interaction) => {
   if (interaction.isChatInputCommand()) {
@@ -559,6 +559,11 @@ Purchase at least two collections to support the bot and unlock exclusive featur
       }
       
 
+      if (customId.startsWith('artifact_purchase_')) {
+        const { handleInteraction } = await import('../commands/economy/artifacts.js');
+        return await handleInteraction(interaction);
+      }
+      
       if (customId.startsWith('bundle_purchase_')) {
         return await handleBundlePurchase(interaction);
       }
@@ -909,6 +914,12 @@ Purchase at least two collections to support the bot and unlock exclusive featur
       const { customId, values } = interaction;
       
 
+      if (customId.startsWith('artifact_preview_')) {
+        const { handleInteraction } = await import('../commands/economy/artifacts.js');
+        await handleInteraction(interaction);
+        return;
+      }
+      
       if (customId.startsWith('bundle_preview_')) {
         await handleBundlePreview(interaction);
         return;

@@ -1,4 +1,4 @@
-import { handleSpawnGuess } from '../utils/autoSpawn.js';
+import { handleSpawnGuess, handleSpawnMessage } from '../utils/autoSpawn.js';
 import { addMessageToCache } from '../utils/messageCacheManager.js';
 import { loadDMMap, saveDMMap } from '../utils/dmMapStore.js';
 import { EmbedBuilder, ChannelType } from 'discord.js';
@@ -179,6 +179,7 @@ export const execute = async (message) => {
           return;
         }
         
+        await handleSpawnMessage(message);
 
         const wasGuessHandled = await handleSpawnGuess(message, message.content.trim());
         if (wasGuessHandled) {
