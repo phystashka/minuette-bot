@@ -272,8 +272,9 @@ async function handleArtifactPurchase(interaction, artifactType, userId, guildId
   }
 
   if (artifactType === 'charm_of_binding') {
-    const { clearAutocatchCache } = await import('../../utils/autoSpawn.js');
-    clearAutocatchCache(guildId);
+    console.log(`[ARTIFACTS] Charm of Binding activated for user ${userId} in guild ${guildId}`);
+    const { refreshAutocatchCache } = await import('../../utils/autoSpawn.js');
+    await refreshAutocatchCache(guildId);
   }
 
   const embed = createEmbed({

@@ -194,14 +194,14 @@ function fixImageUrl(url) {
 
 
 const RARITY_CHANCES = {
-  BASIC: 0.80,
-  RARE: 0.15,
-  EPIC: 0.02,
-  MYTHIC: 0.006,
-  LEGEND: 0.003,
-  CUSTOM: 0.002,
-  SECRET: 0.0015,
-  EVENT: 0.0005
+  BASIC: 0.40,
+  RARE: 0.075,
+  EPIC: 0.01,
+  MYTHIC: 0.003,
+  LEGEND: 0.0015,
+  CUSTOM: 0.001,
+  SECRET: 0.00075,
+  EVENT: 0.00025
 }; 
 
 

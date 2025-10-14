@@ -66,11 +66,23 @@ export async function cleanExpiredArtifacts() {
         stopServerCharms(artifact.guild_id);
       }
     }
+
+    const expiredCharms = await query(
+      'SELECT DISTINCT guild_id FROM active_artifacts WHERE artifact_type = ? AND expires_at <= ?',
+      ['charm_of_binding', Date.now()]
+    );
     
     const result = await query(
       'DELETE FROM active_artifacts WHERE expires_at <= ?',
       [Date.now()]
     );
+
+    if (expiredCharms && expiredCharms.length > 0) {
+      const { clearAutocatchCache } = await import('./autoSpawn.js');
+      for (const artifact of expiredCharms) {
+        clearAutocatchCache(artifact.guild_id);
+      }
+    }
     
     if (Array.isArray(result)) {
       return result.length || 0;

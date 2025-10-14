@@ -89,14 +89,14 @@ const BACKGROUND_EMOJIS = {
 
 
 const RARITY_CHANCES = {
-  BASIC: 0.50,
-  RARE: 0.40,
-  EPIC: 0.09,
-  MYTHIC: 0.005,
-  LEGEND: 0.0025,
-  CUSTOM: 0.00125,
-  SECRET: 0.0005,
-  EVENT: 0.00025
+  BASIC: 0.125,
+  RARE: 0.10,
+  EPIC: 0.0225,
+  MYTHIC: 0.00125,
+  LEGEND: 0.000625,
+  CUSTOM: 0.0003125,
+  SECRET: 0.000125,
+  EVENT: 0.0000625
 };
 
 function calculateCorrectLettersPercentage(guessedName, correctName) {
@@ -1331,22 +1331,22 @@ setInterval(() => {
 async function checkAndHandleAutocatch(message, guildId) {
   try {
     const cacheKey = `charms_${guildId}`;
-    const cached = activeCharmsCache.get(cacheKey);
-    let activeCharms;
     
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      activeCharms = cached.data;
-    } else {
-      const { query } = await import('./database.js');
-      activeCharms = await query(
-        'SELECT user_id FROM active_artifacts WHERE guild_id = ? AND artifact_type = ? AND expires_at > ?',
-        [guildId, 'charm_of_binding', Date.now()]
-      );
+    // Принудительно обновляем кеш при каждом спавне для отладки
+    const { query } = await import('./database.js');
+    const activeCharms = await query(
+      'SELECT user_id FROM active_artifacts WHERE guild_id = ? AND artifact_type = ? AND expires_at > ?',
+      [guildId, 'charm_of_binding', Date.now()]
+    );
 
-      activeCharmsCache.set(cacheKey, {
-        data: activeCharms || [],
-        timestamp: Date.now()
-      });
+    activeCharmsCache.set(cacheKey, {
+      data: activeCharms || [],
+      timestamp: Date.now()
+    });
+    
+    console.log(`[AUTOCATCH DEBUG] Guild ${guildId}: Found ${activeCharms?.length || 0} active charms`);
+    if (activeCharms && activeCharms.length > 0) {
+      console.log(`[AUTOCATCH DEBUG] Active users: ${activeCharms.map(c => c.user_id).join(', ')}`);
     }
 
     if (!activeCharms || activeCharms.length === 0) {
@@ -1358,24 +1358,29 @@ async function checkAndHandleAutocatch(message, guildId) {
       return;
     }
 
-    const processLimit = Math.min(activeCharms.length, 3);
+    const processLimit = activeCharms.length;
     const successfulCatches = [];
     
     for (let i = 0; i < processLimit; i++) {
       const charm = activeCharms[i];
       const userId = charm.user_id;
       
+      console.log(`[AUTOCATCH DEBUG] Processing user ${userId} (${i+1}/${processLimit})`);
+      
       try {
         const alreadyUsed = await hasUsedAutocatch(userId, guildId, spawn.messageId);
         if (alreadyUsed) {
+          console.log(`[AUTOCATCH DEBUG] User ${userId} already used autocatch for this spawn`);
           continue;
         }
 
         const slotCheck = await canGetNewPony(userId);
         if (!slotCheck.canGet) {
+          console.log(`[AUTOCATCH DEBUG] User ${userId} cannot get new pony: ${slotCheck.message}`);
           continue;
         }
 
+        console.log(`[AUTOCATCH DEBUG] Processing autocatch for user ${userId}`);
         await markAutocatchUsed(userId, guildId, spawn.messageId);
         const result = await handleAutocatchSilent(message, spawn, userId);
         
@@ -1387,6 +1392,8 @@ async function checkAndHandleAutocatch(message, guildId) {
             resourceText: result.resourceText
           });
           console.log(`[AUTOCATCH] Charm of Binding activated for user ${userId} in guild ${guildId}`);
+        } else {
+          console.log(`[AUTOCATCH DEBUG] Failed to process autocatch for user ${userId}`);
         }
       } catch (userError) {
         console.error(`[AUTOCATCH] Error processing user ${userId}:`, userError.message);
@@ -1475,8 +1482,8 @@ async function sendMultipleAutocatchMessage(message, spawn, catches) {
     
     const title = catches.length === 1 ? 'Charm of Binding Activated!' : 'Charms of Binding Activated!';
     const description = catches.length === 1 
-      ? `${userMentions}, your **Charm of Binding** automatically caught **${spawn.pony.name}**!\n\n**Rewards:**\n${rewardsText}\n\n*Others can still try to catch this pony manually.*`
-      : `${userMentions}, your **Charms of Binding** automatically caught **${spawn.pony.name}**!\n\n**Rewards:**\n${rewardsText}\n\n*Others can still try to catch this pony manually.*`;
+      ? `${userMentions}, your **Charm of Binding** automatically caught a pony!\n\n**Rewards:**\n${rewardsText}\n\n*Others can still try to catch this pony manually.*`
+      : `${userMentions}, your **Charms of Binding** automatically caught a pony!\n\n**Rewards:**\n${rewardsText}\n\n*Others can still try to catch this pony manually.*`;
 
     const embed = createEmbed({
       title: title,
@@ -1563,7 +1570,7 @@ async function handleAutocatch(message, spawn, userId) {
 
     const embed = createEmbed({
       title: 'Charm of Binding Activated!',
-      description: `${discordUser}, your **Charm of Binding** automatically caught **${spawn.pony.name}**!\n\n**Rewards:**\n<:bits:1411354539935666197> +${bitsReward} bits\n<:harmony:1416514347789844541> +5 harmony${resourceText}\n\n*Others can still try to catch this pony manually.*`,
+      description: `${discordUser}, your **Charm of Binding** automatically caught a pony!\n\n**Rewards:**\n<:bits:1411354539935666197> +${bitsReward} bits\n<:harmony:1416514347789844541> +5 harmony${resourceText}\n\n*Others can still try to catch this pony manually.*`,
       color: 0x8A2BE2,
       user: discordUser
     });
@@ -1670,4 +1677,27 @@ export function clearAutocatchCache(guildId) {
   const cacheKey = `charms_${guildId}`;
   activeCharmsCache.delete(cacheKey);
   console.log(`[AUTOCATCH] Cache cleared for guild ${guildId}`);
+}
+
+export async function refreshAutocatchCache(guildId) {
+  try {
+    const cacheKey = `charms_${guildId}`;
+    const { query } = await import('./database.js');
+    const activeCharms = await query(
+      'SELECT user_id FROM active_artifacts WHERE guild_id = ? AND artifact_type = ? AND expires_at > ?',
+      [guildId, 'charm_of_binding', Date.now()]
+    );
+
+    activeCharmsCache.set(cacheKey, {
+      data: activeCharms || [],
+      timestamp: Date.now()
+    });
+    
+    console.log(`[AUTOCATCH] Cache refreshed for guild ${guildId}, found ${activeCharms?.length || 0} active charms`);
+    if (activeCharms && activeCharms.length > 0) {
+      console.log(`[AUTOCATCH] Active users: ${activeCharms.map(c => c.user_id).join(', ')}`);
+    }
+  } catch (error) {
+    console.error(`[AUTOCATCH] Error refreshing cache for guild ${guildId}:`, error);
+  }
 }
