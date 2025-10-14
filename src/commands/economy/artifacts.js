@@ -22,7 +22,7 @@ const ARTIFACTS = {
     description: 'Ancient amulet created by unicorns of the Dawn Era.\nIt captures magical traces of ponies and helps bind their connection effortlessly.\nHowever, its power is short-lived - after an hour it crumbles to stardust.',
     type: 'Personal, 3 hours',
     effect: 'Automatic capture of ponies of all rarities',
-    cost: 20000,
+    cost: 40000,
     duration: 3 * 60 * 60 * 1000,
   },
   server_charms: {
