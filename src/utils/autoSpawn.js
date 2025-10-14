@@ -1423,8 +1423,7 @@ async function handleAutocatchSilent(message, spawn, userId) {
       }
     }
 
-    const bitsReward = Math.floor(Math.random() * 21) + 10;
-    await addBits(pony.user_id, bitsReward);
+    const bitsReward = 0;
     
     try {
       const { addQuestProgress } = await import('./questUtils.js');
@@ -1471,7 +1470,7 @@ async function sendMultipleAutocatchMessage(message, spawn, catches) {
     }
     
     const rewardsText = displayCatches.map(c => 
-      `**${c.user.displayName}**: <:bits:1411354539935666197> +${c.bitsReward} bits, <:harmony:1416514347789844541> +5 harmony${c.resourceText}`
+      `**${c.user.displayName}**: <:harmony:1416514347789844541> +5 harmony${c.resourceText}`
     ).join('\n') + (hasMore ? `\n... and other ${catches.length - displayLimit} users` : '');
     
     const title = catches.length === 1 ? 'Charm of Binding Activated!' : 'Charms of Binding Activated!';
