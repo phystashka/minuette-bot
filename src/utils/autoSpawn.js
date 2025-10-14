@@ -730,22 +730,6 @@ export async function handleSpawnMessage(message) {
       }
       
       if (guessedName === correctName) {
-        const finalCharmCheck = await query(
-          'SELECT 1 FROM active_artifacts WHERE user_id = ? AND guild_id = ? AND artifact_type = ? AND expires_at > ?',
-          [userId, message.guild.id, 'charm_of_binding', Date.now()]
-        );
-        
-        if (finalCharmCheck && finalCharmCheck.length > 0) {
-          await message.reply({
-            embeds: [createEmbed({
-              title: '🔮 Charm of Binding Active!',
-              description: `You have an active **Charm of Binding** that automatically catches ponies for you. Manual catching is disabled while the charm is active.`,
-              user: message.author,
-              color: 0x8A2BE2
-            })]
-          });
-          return;
-        }
         
         const slotCheck = await canGetNewPony(userId);
         if (!slotCheck.canGet) {
@@ -910,23 +894,6 @@ export async function handleSpawnGuessModal(interaction) {
 
     
     if (guessedName === correctName) {
-
-      const finalCharmCheck = await query(
-        'SELECT 1 FROM active_artifacts WHERE user_id = ? AND guild_id = ? AND artifact_type = ? AND expires_at > ?',
-        [userId, guildId, 'charm_of_binding', Date.now()]
-      );
-      
-      if (finalCharmCheck && finalCharmCheck.length > 0) {
-        return await interaction.reply({
-          embeds: [createEmbed({
-            title: '🔮 Charm of Binding Active!',
-            description: `You have an active **Charm of Binding** that automatically catches ponies for you. Manual catching is disabled while the charm is active.`,
-            user: interaction.user,
-            color: 0x8A2BE2
-          })],
-          ephemeral: true
-        });
-      }
       
       const slotCheck = await canGetNewPony(userId);
       if (!slotCheck.canGet) {
@@ -1126,6 +1093,16 @@ export async function handleSpawnGuess(message, guessedName) {
   
   if (!spawn) return false;
   
+  const userId = message.author.id;
+  const { query } = await import('./database.js');
+  const activeCharm = await query(
+    'SELECT 1 FROM active_artifacts WHERE user_id = ? AND guild_id = ? AND artifact_type = ? AND expires_at > ?',
+    [userId, message.guild.id, 'charm_of_binding', Date.now()]
+  );
+  
+  if (activeCharm && activeCharm.length > 0) {
+    return false;
+  }
 
   let isCorrectGuess = guessedName.toLowerCase() === spawn.ponyName.toLowerCase();
   
