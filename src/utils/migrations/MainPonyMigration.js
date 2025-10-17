@@ -2,17 +2,23 @@ import { query, getRow } from '../database.js';
 
 
 const NEW_PONIES = [
-  { 
-    name: 'Raini Lulamoon', 
-    description: `The adopted child of Starlight Lulamoon and Princess Luna. He's a unicorn colt that hails from the Frozen North. He was forced to leave due to his uncontrollable ice magic that runs rampant based on emotions. He was sent to attend Celestia's school for gifted unicorns in the hopes that the old ruler could help him learn his powers.`, 
-    image: 'https://i.imgur.com/QgXjo1Q.png', 
-    pony_type: 'unicorn', 
-    is_canon: 0, 
-    is_unique: 0, 
-    rarity: 'CUSTOM', 
-    background: 'canterlot', 
-    family_group: null 
-  },
+  // === LEGEND ===
+  { name: 'Sphinx', description: 'A tyrannical creature with a pony head, lion body, and eagle wings, who terrorizes villages with riddles and demands tribute.', image: 'https://i.imgur.com/oUy3B6A.png', pony_type: 'sphinx', is_canon: 1, rarity: 'LEGEND', background: 'somnambula_village', family_group: null },
+  { name: 'Tantabus', description: 'A parasitic magical force created by Princess Luna to punish herself by turning dreams into nightmares.', image: 'https://i.imgur.com/TWd1kdz.png', pony_type: 'magical_creature', is_canon: 1, rarity: 'LEGEND', background: 'dream_realm', family_group: null },
+  // === SECRET ===
+  { name: 'Pony of Shadows', description: 'The dark entity formed when Stygian merged with shadows, a powerful antagonist seeking revenge on the Pillars of Old Equestria.', image: 'https://i.imgur.com/wSMPftz.png', pony_type: 'shadow_pony', is_canon: 1, rarity: 'SECRET', background: 'limbo', family_group: null },
+  // === MYTHIC ===
+  { name: 'Stygian', description: 'A scholarly unicorn who assembled the Pillars of Old Equestria but became the Pony of Shadows after feeling betrayed.', image: 'https://i.imgur.com/TWd1kdz.png', pony_type: 'unicorn', is_canon: 1, rarity: 'MYTHIC', background: 'equestria', family_group: null },
+  // === EPIC ===
+  { name: 'Gilded Lily', description: 'Fancy Pants\' niece, a young unicorn filly who appears in the IDW comics, seeking her cutie mark with the Crusaders\' help.', image: 'https://i.imgur.com/elL8t13.png', pony_type: 'unicorn', is_canon: 1, rarity: 'EPIC', background: 'canterlot', family_group: null },
+  // === RARE ===
+  { name: 'Seabreeze', description: 'An outspoken male Breezie leader who guides his group during migration, speaking in a Scottish-like accent.', image: 'https://i.imgur.com/I8gkNTb.png', pony_type: 'breezie', is_canon: 1, rarity: 'RARE', background: 'breezie_grove', family_group: 'breezie_family' },
+  { name: 'Soyokaze', description: 'A breezie from the tiny winged creature community in Breezie Hollow.', image: 'https://i.imgur.com/n2wPtwd.png', pony_type: 'breezie', is_canon: 1, rarity: 'RARE', background: 'breezie_grove', family_group: 'breezie_family' },
+  { name: 'Ghostberry', description: 'A breezie from the tiny winged creature community in Breezie Hollow.', image: 'https://i.imgur.com/Yb8CHxG.png', pony_type: 'breezie', is_canon: 1, rarity: 'RARE', background: 'breezie_grove', family_group: 'breezie_family' },
+  { name: 'Cotton', description: 'A breezie from the tiny winged creature community in Breezie Hollow.', image: 'https://i.imgur.com/PDCxanW.png', pony_type: 'breezie', is_canon: 1, rarity: 'RARE', background: 'breezie_grove', family_group: 'breezie_family' },
+
+  { name: 'Strawberry Whirl', description: 'A kind-hearted pegasus from Cloudsdale who discovered her love for baking during a visit to Ponyville. After creating her first strawberry macaroons and seeing how they made everypony smile, she earned her cutie mark a trio of macaroons symbolizing her gift for spreading joy through sweet treats.', image: 'https://i.imgur.com/Z71paWH.png', pony_type: 'pegasus', is_canon: 1, rarity: 'CUSTOM', background: 'cloudsdale', family_group: null },
+  { name: 'Ghost', description: 'Once a cheerful unicorn from Rustmane, June Flower’s life ended on her 14th birthday when a nuclear blast tore her city apart. Mutated by magic and radiation, she awoke as something else immortal, powerful, and broken. Now known as Ghost, she wanders the wastelands, haunted by the memory of her lost family and the monster she’s become.', image: 'https://i.imgur.com/FYEux5T.png', pony_type: 'alicorn', is_canon: 1, rarity: 'CUSTOM', background: 'Rustmane', family_group: null },
 ];
 
 

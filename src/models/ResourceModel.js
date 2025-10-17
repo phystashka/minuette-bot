@@ -340,6 +340,9 @@ export const addResource = async (userId, resourceType, amount) => {
       case 'moonstone_shard':
         updateData.moonstone_shard = (resources.moonstone_shard || 0) + amount;
         break;
+      case 'diamonds':
+        updateData.diamonds = (resources.diamonds || 0) + amount;
+        break;
 
       default:
         throw new Error('Invalid resource type');

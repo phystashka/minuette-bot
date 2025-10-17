@@ -19,6 +19,7 @@ import { createBreedingTable } from '../commands/economy/breed.js';
 import { updatePonyFriendsTableStructure } from '../models/FriendshipModel.js';
 import { createPerformanceIndexes } from './performanceOptimizer.js';
 import { createVoteTable } from '../models/VoteModel.js';
+import { createBingoTable } from '../models/BingoModel.js';
 
 
 
@@ -73,6 +74,8 @@ export const setupDatabase = async () => {
     
 
     await createVoteTable();
+    
+    await createBingoTable();
     
     await createArtifactsTables();
     

@@ -37,6 +37,7 @@ export async function execute(interaction) {
 \`/blood_moon\` - View Blood Moon event status
 \`/rebirth\` - Rebirth for special rewards
 \`/breed\` - Breed ponies for new offspring
+\`/bingo\` - Play pony bingo for rewards
 \`/donate_shop\` - Support the bot development
 🗝️ \`/set_spawn\` - Set the spawn channel for ponies (Admin only)
 🗝️ \`/remove_spawn\` - Remove the spawn channel (Admin only)

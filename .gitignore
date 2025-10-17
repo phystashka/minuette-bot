@@ -34,6 +34,7 @@ tmp/
 
 # Images and assets
 src/public/
+src/bingo/
 temp_pony_images/
 
 # OS generated files

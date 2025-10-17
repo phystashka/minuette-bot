@@ -265,7 +265,7 @@ export function validatePonyAge(age) {
 }
 
 export function validatePonyRace(race) {
-  const validRaces = ['earth', 'unicorn', 'pegasus', 'alicorn', 'zebra', 'changeling', 'hippogriff', 'crystal', 'batpony', 'seapony', 'dragon', 'yak', 'griffon', 'goat', 'satyr', 'ahuizotl', 'alligator', 'tortoise', 'owl', 'dog', 'cat', 'bunny', 'bear', 'reindeer', 'phoenix'];
+  const validRaces = ['earth', 'unicorn', 'pegasus', 'alicorn', 'zebra', 'changeling', 'hippogriff', 'crystal', 'batpony', 'seapony', 'dragon', 'yak', 'griffon', 'goat', 'satyr', 'ahuizotl', 'alligator', 'tortoise', 'owl', 'dog', 'cat', 'bunny', 'bear', 'reindeer', 'phoenix', 'breezie', 'sphinx', 'shadow_pony'];
   
   if (!race) {
     throw new Error('Pony race cannot be empty');
@@ -352,7 +352,7 @@ export function validatePonyDescription(description) {
 }
 
 export function getRaces() {
-  return ['earth', 'unicorn', 'pegasus', 'alicorn', 'zebra', 'changeling', 'hippogriff', 'crystal', 'batpony', 'seapony', 'dragon', 'yak', 'griffon', 'goat', 'satyr', 'ahuizotl', 'alligator', 'tortoise', 'owl', 'dog', 'cat', 'bunny', 'bear', 'reindeer', 'phoenix'];
+  return ['earth', 'unicorn', 'pegasus', 'alicorn', 'zebra', 'changeling', 'hippogriff', 'crystal', 'batpony', 'seapony', 'dragon', 'yak', 'griffon', 'goat', 'satyr', 'ahuizotl', 'alligator', 'tortoise', 'owl', 'dog', 'cat', 'bunny', 'bear', 'reindeer', 'phoenix', 'breezie', 'sphinx', 'shadow_pony'];
 }
 
 export function hasPony(pony) {

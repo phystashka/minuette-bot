@@ -22,6 +22,7 @@ import { query, getRow } from '../../utils/database.js';
 import { t } from '../../utils/localization.js';
 import { hasActivePotion } from '../../models/ResourceModel.js';
 import { getUserRebirth, getPonyDuplicateMultiplier, canGetNewPony } from './rebirth.js';
+import { checkBingoUpdate, createBingoUpdateEmbed } from '../../utils/bingoManager.js';
 
 
 const RARITY_EMOJIS = {
@@ -815,6 +816,27 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
                   resourceText += '\n> <a:goldkey:1426332679103709314> You found a key!';
                 }
                 
+                let bingoText = '';
+                try {
+                  const bingoUpdate = await checkBingoUpdate(pony.user_id, randomPony.name);
+                  if (bingoUpdate) {
+                    if (bingoUpdate.isWin && bingoUpdate.reward) {
+                      bingoText = `\n> **BINGO!** You completed 2 different line types! Rewards: ${bingoUpdate.reward.keys} keys, ${bingoUpdate.reward.bits} bits, ${bingoUpdate.reward.cases} cases`;
+                      if (bingoUpdate.reward.diamonds > 0) {
+                        bingoText += `, ${bingoUpdate.reward.diamonds} diamonds`;
+                      }
+                    } else if (bingoUpdate.isWin) {
+                      bingoText = '\n> **BINGO!** You completed 2 different line types!';
+                    } else {
+                      const progress = bingoUpdate.lineTypes.needsMore 
+                        ? `(need ${2 - bingoUpdate.lineTypes.count} more line type${2 - bingoUpdate.lineTypes.count > 1 ? 's' : ''})`
+                        : '(need different line type)';
+                      bingoText = `\n> **Bingo!** ${randomPony.name} crossed off! ${progress}`;
+                    }
+                  }
+                } catch (bingoError) {
+                  console.error('Error checking bingo update in venture:', bingoError);
+                }
 
                 let displayName = randomPony.name;
                 
@@ -841,7 +863,7 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
                         description: description,
                         rarity: RARITY_EMOJIS[randomPony.rarity],
                         bits_reward: bitsReward,
-                        resource_text: resourceText,
+                        resource_text: resourceText + bingoText,
                         duplicate_text: duplicateText,
                         faction_points_text: '',
                         friend_text: friendText

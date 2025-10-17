@@ -40,7 +40,8 @@ const VALID_PONY_RACES = [
   'Batpony', 'Seapony', 'Kirin', 'Yak', 
   'Dragon', 'Griffin', 'Lamia', 'Sphinx', 
   'Deer', 'Donkey', 'Mule', 'Pony',
-  'Diamond Dog', 'Minotaur', 'Centaur', 'Draconequus'
+  'Diamond Dog', 'Minotaur', 'Centaur', 'Draconequus',
+  'Breezie', 'Shadow_pony'
 ];
 
 

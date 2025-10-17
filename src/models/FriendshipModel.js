@@ -275,7 +275,6 @@ export const PONY_DATA = [
   { name: 'Mane Allgood', description: 'The dedicated pegasus mother of Scootaloo, a zoologist who studies and protects endangered animals across Equestria.', image: 'https://i.imgur.com/dnNn2AP.png', pony_type: 'pegasus', is_canon: 1, rarity: 'EPIC', background: 'ponyville', family_group: 'scootaloo_family' },
   { name: 'Songbird Serenade', description: 'A famous pegasus pop star from the My Little Pony movie, known for her stunning performances and inspiring music.', image: 'https://i.imgur.com/qS1lJcy.png', pony_type: 'pegasus', is_canon: 1, rarity: 'EPIC', background: 'canterlot', family_group: null },
   { name: 'Dr. Fauna', description: 'A kind-hearted earth pony veterinarian in Ponyville who cares for animals and works closely with Fluttershy.', image: 'https://i.imgur.com/Yp4RUkl.png', pony_type: 'earth', is_canon: 1, rarity: 'EPIC', background: 'ponyville', family_group: null },
-
   { name: 'Ruby Jubilee', description: 'An energetic pegasus pony and mayor of Hope Hollow, known for her leadership in organizing the annual Rainbow Festival and her optimistic spirit in bringing the town together.', image: 'https://i.imgur.com/613dZLb.png', pony_type: 'pegasus', is_canon: 1, rarity: 'EPIC', background: 'hope_hollow', family_group: null },
 
 
@@ -328,6 +327,22 @@ export const PONY_DATA = [
   { name: 'Twilight Velvet', description: 'Twilight Sparkle and Shining Armor\'s mother, an author who loves adventure stories.', image: 'https://i.imgur.com/T9TXXEE.png', pony_type: 'unicorn', is_canon: 1, rarity: 'RARE', background: 'canterlot', family_group: 'sparkle_family' },
   { name: 'Night Light', description: 'Twilight Sparkle and Shining Armor\'s father, a supportive and intellectual unicorn.', image: 'https://i.imgur.com/4yLT1Z2.png', pony_type: 'unicorn', is_canon: 1, rarity: 'RARE', background: 'canterlot', family_group: 'sparkle_family' },
   { name: 'Dusty Pages', description: 'Twilight\'s favorite elderly librarian from Canterlot, dedicated to preserving knowledge.', image: 'https://i.imgur.com/b5PKWHW.png', pony_type: 'unicorn', is_canon: 1, rarity: 'RARE', background: 'canterlot', family_group: null },
+  
+  // === LEGEND ===
+  { name: 'Sphinx', description: 'A tyrannical creature with a pony head, lion body, and eagle wings, who terrorizes villages with riddles and demands tribute.', image: 'https://i.imgur.com/oUy3B6A.png', pony_type: 'sphinx', is_canon: 1, rarity: 'LEGEND', background: 'somnambula_village', family_group: null },
+  { name: 'Tantabus', description: 'A parasitic magical force created by Princess Luna to punish herself by turning dreams into nightmares.', image: 'https://i.imgur.com/TWd1kdz.png', pony_type: 'magical_creature', is_canon: 1, rarity: 'LEGEND', background: 'dream_realm', family_group: null },
+  // === SECRET ===
+  { name: 'Pony of Shadows', description: 'The dark entity formed when Stygian merged with shadows, a powerful antagonist seeking revenge on the Pillars of Old Equestria.', image: 'https://i.imgur.com/wSMPftz.png', pony_type: 'shadow_pony', is_canon: 1, rarity: 'SECRET', background: 'limbo', family_group: null },
+  // === MYTHIC ===
+  { name: 'Stygian', description: 'A scholarly unicorn who assembled the Pillars of Old Equestria but became the Pony of Shadows after feeling betrayed.', image: 'https://i.imgur.com/TWd1kdz.png', pony_type: 'unicorn', is_canon: 1, rarity: 'MYTHIC', background: 'equestria', family_group: null },
+  // === EPIC ===
+  { name: 'Gilded Lily', description: 'Fancy Pants\' niece, a young unicorn filly who appears in the IDW comics, seeking her cutie mark with the Crusaders\' help.', image: 'https://i.imgur.com/elL8t13.png', pony_type: 'unicorn', is_canon: 1, rarity: 'EPIC', background: 'canterlot', family_group: null },
+  // === RARE ===
+  { name: 'Seabreeze', description: 'An outspoken male Breezie leader who guides his group during migration, speaking in a Scottish-like accent.', image: 'https://i.imgur.com/I8gkNTb.png', pony_type: 'breezie', is_canon: 1, rarity: 'RARE', background: 'breezie_grove', family_group: 'breezie_family' },
+  { name: 'Soyokaze', description: 'A breezie from the tiny winged creature community in Breezie Hollow.', image: 'https://i.imgur.com/n2wPtwd.png', pony_type: 'breezie', is_canon: 1, rarity: 'RARE', background: 'breezie_grove', family_group: 'breezie_family' },
+  { name: 'Ghostberry', description: 'A breezie from the tiny winged creature community in Breezie Hollow.', image: 'https://i.imgur.com/Yb8CHxG.png', pony_type: 'breezie', is_canon: 1, rarity: 'RARE', background: 'breezie_grove', family_group: 'breezie_family' },
+  { name: 'Cotton', description: 'A breezie from the tiny winged creature community in Breezie Hollow.', image: 'https://i.imgur.com/PDCxanW.png', pony_type: 'breezie', is_canon: 1, rarity: 'RARE', background: 'breezie_grove', family_group: 'breezie_family' },
+  
   { name: 'Matilda', description: 'A donkey who organizes the Equestria Games and is Cranky Doodle\'s fiancée.', image: 'https://i.imgur.com/yFlLlBM.png', pony_type: 'donkey', is_canon: 1, rarity: 'RARE', background: 'equestria', family_group: null },
   { name: 'Cranky Doodle Donkey', description: 'A grumpy elderly donkey searching for his lost love Matilda.', image: 'https://i.imgur.com/s8gqon3.png', pony_type: 'donkey', is_canon: 1, rarity: 'RARE', background: 'ponyville', family_group: null },
   { name: 'Hoops', description: 'A pegasus bully and friend of Dumb-Bell, often teasing Rainbow Dash.', image: 'https://i.imgur.com/pdJs4yP.png', pony_type: 'pegasus', is_canon: 1, rarity: 'RARE', background: 'ponyville', family_group: null },
@@ -390,6 +405,11 @@ export const PONY_DATA = [
   { name: 'Amethyst Star', description: 'A unicorn mare with a purple coat and darker mane, seen in various background scenes.', image: 'https://i.imgur.com/SFuToix.png', pony_type: 'unicorn', is_canon: 1, rarity: 'BASIC', background: 'ponyville', family_group: null },
   { name: 'Cherry Berry', description: 'An earth pony mare with a pink coat and red mane, often seen in Ponyville.', image: 'https://i.imgur.com/B87mxYY.png', pony_type: 'earth', is_canon: 1, rarity: 'BASIC', background: 'ponyville', family_group: null },
   { name: 'Daisy', description: 'An earth pony who works at the flower shop alongside Roseluck and Lily Valley.', image: 'https://i.imgur.com/btX7ThW.png', pony_type: 'earth', is_canon: 1, rarity: 'BASIC', background: 'ponyville', family_group: null },
+  
+  // More Breezie characters
+  { name: 'Flutter Breezie', description: 'A small and gentle breezie who loves flowers and helps pollinate the magical gardens of the breezie realm.', image: 'https://i.imgur.com/FlutterBreezie.png', pony_type: 'breezie', is_canon: 1, rarity: 'BASIC', background: 'breezie_realm', family_group: 'breezie_colony' },
+  { name: 'Zippy Breezie', description: 'A fast-flying breezie messenger who carries important news between the breezie colonies.', image: 'https://i.imgur.com/ZippyBreezie.png', pony_type: 'breezie', is_canon: 1, rarity: 'BASIC', background: 'breezie_realm', family_group: 'breezie_colony' },
+  
   { name: 'Lily Valley', description: 'An earth pony florist who works with Daisy and Roseluck at the flower shop.', image: 'https://i.imgur.com/9XSgZM8.png', pony_type: 'earth', is_canon: 1, rarity: 'BASIC', background: 'ponyville', family_group: null },
   { name: 'Noteworthy', description: 'A male earth pony with musical talent, often seen performing or at musical events.', image: 'https://i.imgur.com/yxi0kWC.png', pony_type: 'earth', is_canon: 1, rarity: 'BASIC', background: 'ponyville', family_group: null },
   { name: 'Shoeshine', description: 'An earth pony mare with cleaning-related cutie mark, works in various service jobs.', image: 'https://i.imgur.com/2nbXe3F.png', pony_type: 'earth', is_canon: 1, rarity: 'BASIC', background: 'ponyville', family_group: null },

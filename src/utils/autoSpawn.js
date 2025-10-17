@@ -18,6 +18,7 @@ import {
   markAutocatchUsed, 
   hasUsedAutocatch 
 } from './artifactManager.js';
+import { checkBingoUpdate, createBingoUpdateEmbed } from './bingoManager.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -84,7 +85,11 @@ const BACKGROUND_EMOJIS = {
   rock_farm: 'Rock Farm',
   sweet_apple_acres: 'Sweet Apple Acres',
   yakyakistan: 'Yakyakistan',
-  zephyr_heights: 'Zephyr Heights'
+  zephyr_heights: 'Zephyr Heights',
+  limbo: 'Limbo',
+  somnambula_village: 'Somnambula Village',
+  breezie_grove: 'Breezie Grove',
+  dream_realm: 'Dream Realm'
 };
 
 
@@ -794,9 +799,31 @@ export async function handleSpawnMessage(message) {
           resourceText += '\n<a:goldkey:1426332679103709314> You got a key!';
         }
 
+        let bingoText = '';
+        try {
+          const bingoUpdate = await checkBingoUpdate(pony.user_id, spawn.pony.name);
+          if (bingoUpdate) {
+            if (bingoUpdate.isWin && bingoUpdate.reward) {
+              bingoText = `\n**BINGO!** You completed 2 different line types! Rewards: ${bingoUpdate.reward.keys} keys, ${bingoUpdate.reward.bits} bits, ${bingoUpdate.reward.cases} cases`;
+              if (bingoUpdate.reward.diamonds > 0) {
+                bingoText += `, ${bingoUpdate.reward.diamonds} diamonds`;
+              }
+            } else if (bingoUpdate.isWin) {
+              bingoText = '\n**BINGO!** You completed 2 different line types!';
+            } else {
+              const progress = bingoUpdate.lineTypes.needsMore 
+                ? `(need ${2 - bingoUpdate.lineTypes.count} more line type${2 - bingoUpdate.lineTypes.count > 1 ? 's' : ''})`
+                : '(need different line type)';
+              bingoText = `\n**Bingo!** ${spawn.pony.name} crossed off! ${progress}`;
+            }
+          }
+        } catch (bingoError) {
+          console.error('Error checking bingo update in autospawn:', bingoError);
+        }
+
         const embed = createEmbed({
           title: '🎉 Pony Friend!',
-          description: `**${message.author.username}** successfully befriended **${spawn.pony.name}**!\nUse \`/myponies\` to view your collection!\n\n+${bitsReward} <:bits:1411354539935666197> +5 <:harmony:1416514347789844541>${resourceText}`,
+          description: `**${message.author.username}** successfully befriended **${spawn.pony.name}**!\nUse \`/myponies\` to view your collection!\n\n+${bitsReward} <:bits:1411354539935666197> +5 <:harmony:1416514347789844541>${resourceText}${bingoText}`,
           color: RARITY_COLORS[spawn.pony.rarity] || 0x3498db,
           user: message.author,
           thumbnail: spawn.pony.image || null
@@ -1332,7 +1359,6 @@ async function checkAndHandleAutocatch(message, guildId) {
   try {
     const cacheKey = `charms_${guildId}`;
     
-    // Принудительно обновляем кеш при каждом спавне для отладки
     const { query } = await import('./database.js');
     const activeCharms = await query(
       'SELECT user_id FROM active_artifacts WHERE guild_id = ? AND artifact_type = ? AND expires_at > ?',
@@ -1450,11 +1476,20 @@ async function handleAutocatchSilent(message, spawn, userId) {
       resourceText += '\n<:case:1417301084291993712> You got a case!';
     }
 
+
+    let bingoUpdate = null;
+    try {
+      bingoUpdate = await checkBingoUpdate(pony.user_id, spawn.pony.name);
+    } catch (bingoError) {
+      console.error('Error checking bingo update in autocatch:', bingoError);
+    }
+
     return {
       success: true,
       user: discordUser,
       bitsReward: bitsReward,
-      resourceText: resourceText
+      resourceText: resourceText,
+      bingoUpdate: bingoUpdate
     };
 
   } catch (error) {
@@ -1476,9 +1511,17 @@ async function sendMultipleAutocatchMessage(message, spawn, catches) {
       userMentions = displayCatches.map(c => c.user.toString()).join(', ');
     }
     
-    const rewardsText = displayCatches.map(c => 
-      `**${c.user.displayName}**: <:harmony:1416514347789844541> +5 harmony${c.resourceText}`
-    ).join('\n') + (hasMore ? `\n... and other ${catches.length - displayLimit} users` : '');
+    const rewardsText = displayCatches.map(c => {
+      let bingoText = '';
+      if (c.bingoUpdate) {
+        if (c.bingoUpdate.isWin) {
+          bingoText = ' 🎉 **BINGO!**';
+        } else {
+          bingoText = ' 🎯 **Bingo Progress!**';
+        }
+      }
+      return `**${c.user.displayName}**: <:harmony:1416514347789844541> +5 harmony${c.resourceText}${bingoText}`;
+    }).join('\n') + (hasMore ? `\n... and other ${catches.length - displayLimit} users` : '');
     
     const title = catches.length === 1 ? 'Charm of Binding Activated!' : 'Charms of Binding Activated!';
     const description = catches.length === 1 
@@ -1532,9 +1575,7 @@ async function handleAutocatch(message, spawn, userId) {
       console.error(`[AUTOCATCH] Could not fetch Discord user ${userId}`);
       return;
     }
-    
-    // Don't delete spawn - other players should still be able to catch the pony manually
-    // activeSpawns.delete(spawn.channelId);
+
     
     const pony = await getPony(userId);
     const duplicateMultiplier = await getPonyDuplicateMultiplier(pony.user_id);
