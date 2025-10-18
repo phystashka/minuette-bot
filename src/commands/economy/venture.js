@@ -6,7 +6,16 @@ import {
   ComponentType,
   ModalBuilder,
   TextInputBuilder,
-  TextInputStyle
+  TextInputStyle,
+  MessageFlags,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
+  AttachmentBuilder
 } from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { createVenturePonyImage } from '../../utils/backgroundRenderer.js';
@@ -221,6 +230,82 @@ const EXCLUDED_PONIES = [
   'Nocturn'
 ];
 
+async function createPonyEncounterComponentsV2(randomPony, masked, guildId, interaction, options = {}) {
+  const { hintUsed = false, superHintUsed = false } = options;
+  const title = await getRandomTitle(randomPony.rarity, guildId, randomPony.background, randomPony.is_unique);
+  
+
+  const headerText = new TextDisplayBuilder()
+    .setContent(`**${title}** ${RARITY_EMOJIS[randomPony.rarity]}${randomPony.is_unique ? ` ${await t('venture.unique', guildId)}` : ''}\n-# A mysterious encounter awaits your decision`);
+  
+  const separator = new SeparatorBuilder()
+    .setDivider(true)
+    .setSpacing(SeparatorSpacingSize.Small);
+  
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(headerText)
+    .addSeparatorComponents(separator);
+
+  if (randomPony.image) {
+    const mediaGallery = new MediaGalleryBuilder()
+      .addItems(
+        new MediaGalleryItemBuilder()
+          .setURL(randomPony.image)
+      );
+    container.addMediaGalleryComponents(mediaGallery);
+    container.addSeparatorComponents(separator);
+  }
+
+  let encounterContent = await t('venture.encountered_pony', guildId, { 
+    unique: '',
+    rarity: '',
+    name: superHintUsed ? `${randomPony.name} ✨` : masked
+  });
+
+  encounterContent = `**${encounterContent}**`;
+  
+  if (hintUsed && !superHintUsed) {
+    encounterContent += '\n-# Some letters have been revealed to help you!';
+  } else if (superHintUsed) {
+    encounterContent += '\n-# The full name has been revealed for 750 bits!';
+  }
+  
+  const encounterText = new TextDisplayBuilder()
+    .setContent(encounterContent);
+  
+  container.addTextDisplayComponents(encounterText)
+    .addSeparatorComponents(separator);
+  
+  const befriendButton = new ButtonBuilder()
+    .setCustomId('befriend')
+    .setLabel(await t('venture.befriend', guildId))
+    .setStyle(ButtonStyle.Primary);
+  
+  const ignoreButton = new ButtonBuilder()
+    .setCustomId('ignore')
+    .setLabel(await t('venture.ignore', guildId))
+    .setStyle(ButtonStyle.Secondary);
+  
+  const hintButton = new ButtonBuilder()
+    .setCustomId('hint')
+    .setLabel(await t('venture.hint', guildId))
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(hintUsed);
+  
+  const superHintButton = new ButtonBuilder()
+    .setCustomId('super_hint')
+    .setLabel(await t('venture.super_hint', guildId))
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(superHintUsed);
+  
+  const actionRow = new ActionRowBuilder()
+    .addComponents(befriendButton, ignoreButton, hintButton, superHintButton);
+  
+  container.addActionRowComponents(actionRow);
+  
+  return container;
+}
+
 const COOLDOWN_TIME = 10 * 60 * 1000;
 const TIMEOUT_DURATION = 2 * 60 * 1000;
 
@@ -291,6 +376,30 @@ async function getBellOnlyActionRow(userId) {
 
 const userCooldowns = new Map();
 
+function createNotificationEnabledComponents() {
+  const headerText = new TextDisplayBuilder()
+    .setContent('🔔 **Notifications enabled!**\n-# You will receive a DM when the cooldown expires.');
+  
+  return new ContainerBuilder()
+    .addTextDisplayComponents(headerText);
+}
+
+function createNotificationDisabledComponents() {
+  const headerText = new TextDisplayBuilder()
+    .setContent('🔔 **Notifications disabled.**\n-# You will no longer receive DM reminders when cooldown expires.');
+  
+  return new ContainerBuilder()
+    .addTextDisplayComponents(headerText);
+}
+
+function createDMsClosedComponents() {
+  const headerText = new TextDisplayBuilder()
+    .setContent('**Cannot enable notifications**\n-# Your DMs are closed. Please open DMs and try again.');
+  
+  return new ContainerBuilder()
+    .addTextDisplayComponents(headerText);
+}
+
 
 async function canSendDM(user) {
   try {
@@ -323,13 +432,12 @@ async function sendCooldownNotification(userId, client) {
     
     console.log(`[sendCooldownNotification] Sending DM to user ${userId}`);
     const { sendDMWithDelete } = await import('../../utils/components.js');
+    const headerText = new TextDisplayBuilder()
+      .setContent('**🔔 Venture Ready!**\n-# Your venture cooldown has expired! You can now use `/venture` again.');
+    const container = new ContainerBuilder().addTextDisplayComponents(headerText);
     await sendDMWithDelete(user, {
-      embeds: [createEmbed({
-        title: '🔔 Venture Ready!',
-        description: 'Your venture cooldown has expired! You can now use `/venture` again.',
-        user: user,
-        footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
-      })]
+      flags: MessageFlags.IsComponentsV2,
+      components: [container]
     });
     
     console.log(`[sendCooldownNotification] Successfully sent DM to user ${userId}`);
@@ -361,17 +469,15 @@ export const data = new SlashCommandBuilder()
       
 
       if (!pony) {
+        const { createNoPonyContainer } = await import('../../utils/pony/ponyMiddleware.js');
+        const container = createNoPonyContainer(
+          'No Pony Found',
+          'You need to have a pony to go on ventures!'
+        );
+        
         return interaction.reply({
-          embeds: [
-            createEmbed({
-              title: 'No Pony Found',
-              description: 'You need to have a pony to go on ventures!\n\nUse `/pony create` to create your first pony.',
-              user: interaction.user,
-              thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-              footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
-            })
-          ],
-          ephemeral: true
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+          components: [container]
         });
       }
       
@@ -384,17 +490,15 @@ export const data = new SlashCommandBuilder()
           const minutes = Math.floor(timeLeft / 60000);
           const seconds = Math.floor((timeLeft % 60000) / 1000);
           
+          const cooldownText = new TextDisplayBuilder()
+            .setContent(`**${await t('venture.cooldown_title', guildId)}**\n-# ${await t('venture.cooldown_message', guildId, { minutes, seconds })}`);
+          
+          const cooldownContainer = new ContainerBuilder()
+            .addTextDisplayComponents(cooldownText);
+          
           return interaction.reply({
-            embeds: [
-              createEmbed({
-                title: await t('venture.cooldown_title', guildId),
-                description: await t('venture.cooldown_message', guildId, { minutes, seconds }),
-                user: interaction.user,
-                thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-                footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
-              })
-            ],
-            ephemeral: true
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            components: [cooldownContainer]
           });
         }
       }
@@ -402,14 +506,15 @@ export const data = new SlashCommandBuilder()
 
       const slotCheck = await canGetNewPony(userId);
       if (!slotCheck.canGet) {
+        const stableFullText = new TextDisplayBuilder()
+          .setContent(`**🏠 Stable Full**\n-# ${slotCheck.message}`);
+        
+        const stableFullContainer = new ContainerBuilder()
+          .addTextDisplayComponents(stableFullText);
+        
         return interaction.reply({
-          embeds: [createEmbed({
-            title: '🏠 Stable Full',
-            description: slotCheck.message,
-            user: interaction.user,
-            color: 0xe74c3c
-          })],
-          ephemeral: true
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+          components: [stableFullContainer]
         });
       }
       
@@ -514,14 +619,13 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
     const masked = getMaskedName(ponyName, revealed);
     
 
-    let ponyWithBackground;
-    try {
-      ponyWithBackground = await createVenturePonyImage(randomPony);
-    } catch (error) {
-      console.error('Error creating pony with background:', error);
-
-      ponyWithBackground = null;
-    }
+    let ponyWithBackground = null;
+    // try {
+    //   ponyWithBackground = await createVenturePonyImage(randomPony);
+    // } catch (error) {
+    //   console.error('Error creating pony with background:', error);
+    //   ponyWithBackground = null;
+    // }
     
 
     const embedColor = RARITY_COLORS[randomPony.rarity];
@@ -529,34 +633,21 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
 
     let title = await getRandomTitle(randomPony.rarity, guildId, randomPony.background, randomPony.is_unique);
     
-    const encounterEmbed = createEmbed({
-      title: title,
-      description: await t('venture.encountered_pony', guildId, { 
-        unique: randomPony.is_unique ? await t('venture.unique', guildId) : '',
-        rarity: RARITY_EMOJIS[randomPony.rarity],
-        name: masked
-      }),
-      image: ponyWithBackground ? `attachment://${ponyWithBackground.name}` : randomPony.image,
-      color: embedColor,
-      user: interaction.user,
-      thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-      footer: { text: 'Support the bot! Use /vote to get free diamonds and keys!' }
-    });
+    const container = await createPonyEncounterComponentsV2(randomPony, masked, guildId, interaction, {});
     
     let hintUsed = false;
     let superHintUsed = false;
-    const actionRow = await getActionRow(guildId, interaction.user.id);
     
 
     const replyOptions = {
-      embeds: [encounterEmbed],
-      components: [actionRow]
+      flags: MessageFlags.IsComponentsV2,
+      components: [container]
     };
     
 
-    if (ponyWithBackground) {
-      replyOptions.files = [ponyWithBackground];
-    }
+    // if (ponyWithBackground) {
+    //   replyOptions.files = [ponyWithBackground];
+    // }
     
     const response = await interaction.editReply(replyOptions);
     
@@ -573,9 +664,15 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
       
       collector.on('collect', async i => {
         if (i.user.id !== interaction.user.id) {
+          const notForYouText = new TextDisplayBuilder()
+            .setContent('This interaction is not for you!');
+          
+          const notForYouContainer = new ContainerBuilder()
+            .addTextDisplayComponents(notForYouText);
+          
           return i.reply({ 
-            content: await t('venture.not_for_you', guildId), 
-            ephemeral: true 
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            components: [notForYouContainer]
           });
         }
         
@@ -595,26 +692,14 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
           }
           hintState.set(i.user.id, revealed);
           const newMasked = getMaskedName(ponyName, revealed);
-          const newEmbed = createEmbed({
-            title: await getRandomTitle(randomPony.rarity, guildId, randomPony.background, randomPony.is_unique),
-            description: await t('venture.encountered_pony', guildId, { 
-              unique: randomPony.is_unique ? await t('venture.unique', guildId) : '',
-              rarity: RARITY_EMOJIS[randomPony.rarity],
-              name: newMasked
-            }),
-            image: ponyWithBackground ? `attachment://${ponyWithBackground.name}` : randomPony.image,
-            user: interaction.user,
-            thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-            footer: { text: 'Support the bot! Use /vote to get free diamonds and keys!' }
-          });
-          const newActionRow = await getActionRow(guildId, interaction.user.id, { hint: true, showBell: true });
+          
+          const updatedContainer = await createPonyEncounterComponentsV2(randomPony, newMasked, guildId, interaction, { hintUsed: true, superHintUsed });
           
           const updateOptions = {
-            embeds: [newEmbed],
-            components: [newActionRow]
+            flags: MessageFlags.IsComponentsV2,
+            components: [updatedContainer]
           };
           
-
           if (ponyWithBackground) {
             updateOptions.files = [ponyWithBackground];
           }
@@ -624,54 +709,35 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
         }
 
         if (i.customId === 'super_hint') {
-
           const currentPony = await getPony(interaction.user.id);
           if (currentPony.bits < 750) {
+            const notEnoughBitsText = new TextDisplayBuilder()
+              .setContent(`**${await t('venture.not_enough_bits', guildId)}**\n-# ${await t('venture.super_hint_cost', guildId, { bits: currentPony.bits })}`);
+            
+            const notEnoughBitsContainer = new ContainerBuilder()
+              .addTextDisplayComponents(notEnoughBitsText);
+            
             return i.reply({
-              embeds: [createEmbed({
-                title: await t('venture.not_enough_bits', guildId),
-                description: await t('venture.super_hint_cost', guildId, { bits: currentPony.bits }),
-                user: interaction.user,
-                thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-                footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
-              })],
-              ephemeral: true
+              flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+              components: [notEnoughBitsContainer]
             });
           }
-
 
           await query('UPDATE ponies SET bits = bits - 750 WHERE user_id = ?', [interaction.user.id]);
           
           superHintUsed = true;
           
-
           const nameArr = ponyName.split('');
           const revealed = nameArr.map((ch, idx) => ch !== ' ' ? idx : null).filter(idx => idx !== null);
           hintState.set(i.user.id, revealed);
           
-
-          const newEmbed = createEmbed({
-            title: await getRandomTitle(randomPony.rarity, guildId, randomPony.background, randomPony.is_unique),
-            description: await t('venture.encountered_pony', guildId, { 
-              unique: randomPony.is_unique ? await t('venture.unique', guildId) : '',
-              rarity: RARITY_EMOJIS[randomPony.rarity],
-              name: `${ponyName} ✨`
-            }),
-            image: ponyWithBackground ? `attachment://${ponyWithBackground.name}` : randomPony.image,
-            user: interaction.user,
-            thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-            footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
-          });
-          
-
-          const newActionRow = await getActionRow(guildId, interaction.user.id, { hint: true, superHint: true, showBell: true });
+          const updatedContainer = await createPonyEncounterComponentsV2(randomPony, ponyName, guildId, interaction, { hintUsed, superHintUsed: true });
           
           const updateOptions = {
-            embeds: [newEmbed],
-            components: [newActionRow]
+            flags: MessageFlags.IsComponentsV2,
+            components: [updatedContainer]
           };
           
-
           if (ponyWithBackground) {
             updateOptions.files = [ponyWithBackground];
           }
@@ -717,19 +783,19 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
           ];
           const randomMessage = ventureMessages[Math.floor(Math.random() * ventureMessages.length)];
           
-          const ventureEmbed = createEmbed({
-            title: await t('venture.adventure_continues', guildId),
-            description: `${randomMessage}\n\nYou found <:bits:1411354539935666197> **${bitsEarned} bits**!${rewardText}`,
-            user: interaction.user,
-            thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-            footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
-          });
-          
-          const disabledRow = await getActionRow(guildId, interaction.user.id, { befriend: true, ignore: true, hint: true, superHint: true, showBell: false });
+          const headerText = new TextDisplayBuilder()
+            .setContent(`**${await t('venture.adventure_continues', guildId)}**\n-# ${randomMessage}`);
+
+          const descText = new TextDisplayBuilder()
+            .setContent(`You found <:bits:1411354539935666197> **${bitsEarned} bits**!${rewardText}`);
+
+          const container = new ContainerBuilder()
+            .addTextDisplayComponents(headerText)
+            .addTextDisplayComponents(descText);
+
           await i.update({ 
-            embeds: [ventureEmbed], 
-            components: [],
-            files: []
+            flags: MessageFlags.IsComponentsV2,
+            components: [container]
           });
           
 
@@ -855,24 +921,31 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
                   const description = randomPony.description || await t('venture.default_description', guildId);
                   const bellActionRow = await getBellOnlyActionRow(interaction.user.id);
                   
+                  const headerText = new TextDisplayBuilder()
+                    .setContent(`**${titleText}**\n-# ${await t('venture.correct_answer', guildId, {
+                      name: displayName,
+                      description: description,
+                      rarity: RARITY_EMOJIS[randomPony.rarity],
+                      bits_reward: bitsReward,
+                      resource_text: resourceText + bingoText,
+                      duplicate_text: duplicateText,
+                      faction_points_text: '',
+                      friend_text: friendText
+                    })}`);
+
+                  const container = new ContainerBuilder()
+                    .addTextDisplayComponents(headerText);
+
+                  const bellSection = new SectionBuilder()
+                    .addTextDisplayComponents(
+                      new TextDisplayBuilder().setContent('**🔔 Notifications**'),
+                      new TextDisplayBuilder().setContent('Get reminded when your venture cooldown ends')
+                    )
+                    .setButtonAccessory(bellActionRow.components[0]);
+
                   const updateOptions = {
-                    embeds: [createEmbed({
-                      title: titleText,
-                      description: await t('venture.correct_answer', guildId, {
-                        name: displayName,
-                        description: description,
-                        rarity: RARITY_EMOJIS[randomPony.rarity],
-                        bits_reward: bitsReward,
-                        resource_text: resourceText + bingoText,
-                        duplicate_text: duplicateText,
-                        faction_points_text: '',
-                        friend_text: friendText
-                      }),
-                      image: ponyWithBackground ? `attachment://${ponyWithBackground.name}` : randomPony.image,
-                      user: interaction.user,
-                      thumbnail: interaction.user.displayAvatarURL({ dynamic: true })
-                    })],
-                    components: [bellActionRow]
+                    flags: MessageFlags.IsComponentsV2,
+                    components: [container, bellSection]
                   };
                   
 
@@ -891,15 +964,26 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
 
                   let displayName = randomPony.name;
                   
+                  const wrongHeader = new TextDisplayBuilder()
+                    .setContent(`**${getWrongTitle(randomPony.rarity, randomPony.background)}**\n-# Sorry, that's not correct.`);
+
+                  const wrongDesc = new TextDisplayBuilder()
+                    .setContent(`The pony was **${displayName}**.\n\nBetter luck next time!`);
+
+                  const wrongContainer = new ContainerBuilder()
+                    .addTextDisplayComponents(wrongHeader)
+                    .addTextDisplayComponents(wrongDesc);
+
+                  const bellSection = new SectionBuilder()
+                    .addTextDisplayComponents(
+                      new TextDisplayBuilder().setContent('**🔔 Notifications**'),
+                      new TextDisplayBuilder().setContent('Get reminded when your venture cooldown ends')
+                    )
+                    .setButtonAccessory(bellActionRow.components[0]);
+
                   const updateOptions = {
-                    embeds: [createEmbed({
-                      title: getWrongTitle(randomPony.rarity, randomPony.background),
-                      description: `> Sorry, that's not correct. The pony was **${displayName}**.\n\n> **Rarity:** ${RARITY_EMOJIS[randomPony.rarity]}\n\n> Better luck next time!`,
-                      image: ponyWithBackground ? `attachment://${ponyWithBackground.name}` : randomPony.image,
-                      user: interaction.user,
-                      thumbnail: interaction.user.displayAvatarURL({ dynamic: true })
-                    })],
-                    components: [bellActionRow]
+                    flags: MessageFlags.IsComponentsV2,
+                    components: [wrongContainer, bellSection]
                   };
                   
 
@@ -930,27 +1014,37 @@ async function handlePonyEncounter(interaction, pony, selectedRarity) {
           if (reason === 'time') {
 
             
-            const timeoutEmbed = createEmbed({
-              title: `Too Late!`,
-              description: `> You took too long to respond (2 minutes) and the mysterious pony walked away.\n\n> **Rarity:** ${RARITY_EMOJIS[randomPony.rarity]}`,
-              image: ponyWithBackground ? `attachment://${ponyWithBackground.name}` : randomPony.image,
-              user: interaction.user,
-              thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-              footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
-            });
+            const headerText = new TextDisplayBuilder()
+              .setContent(`**Too Late!** ${RARITY_EMOJIS[randomPony.rarity]}\n-# You took too long to respond (2 minutes) and the mysterious pony walked away.`);
             
-            const bellActionRow = await getBellOnlyActionRow(interaction.user.id);
-            
+            const container = new ContainerBuilder()
+              .addTextDisplayComponents(headerText);
+
+            const notificationEnabled = await isNotificationEnabled(interaction.user.id);
+            const bellButton = new ButtonBuilder()
+              .setCustomId(`toggle_notification_${interaction.user.id}`)
+              .setLabel('Remind me')
+              .setEmoji('🔔')
+              .setStyle(notificationEnabled ? ButtonStyle.Success : ButtonStyle.Secondary);
+
+            const bellSection = new SectionBuilder()
+              .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent('**🔔 Notifications**'),
+                new TextDisplayBuilder().setContent('Get reminded when your venture cooldown ends')
+              )
+              .setButtonAccessory(bellButton);
+
+            container.addSectionComponents(bellSection);
+
             const updateOptions = { 
-              embeds: [timeoutEmbed], 
-              components: [bellActionRow] 
+              flags: MessageFlags.IsComponentsV2,
+              components: [container]
             };
-            
 
             if (ponyWithBackground) {
               updateOptions.files = [ponyWithBackground];
             }
-            
+
             await interaction.editReply(updateOptions).catch(err => {
               console.error('[handlePonyEncounter] Failed to edit reply on timeout:', err);
             });
@@ -981,9 +1075,15 @@ async function handleNotificationToggle(interaction, userId, guildId) {
     if (interaction.user.id !== userId) {
       try {
         if (!interaction.replied && !interaction.deferred) {
+          const accessDeniedText = new TextDisplayBuilder()
+            .setContent('You can only manage your own notification settings.');
+          
+          const accessDeniedContainer = new ContainerBuilder()
+            .addTextDisplayComponents(accessDeniedText);
+          
           await interaction.reply({
-            content: '❌ You can only manage your own notification settings.',
-            ephemeral: true
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            components: [accessDeniedContainer]
           });
         }
       } catch (error) {
@@ -1003,8 +1103,8 @@ async function handleNotificationToggle(interaction, userId, guildId) {
 
       try {
         await interaction.followUp({
-          content: '🔔 Notifications disabled. You will no longer receive DM reminders when cooldown expires.',
-          ephemeral: true
+          components: [createNotificationDisabledComponents()],
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2
         });
       } catch (error) {
         console.log('Could not send followUp - interaction may have expired');
@@ -1017,8 +1117,8 @@ async function handleNotificationToggle(interaction, userId, guildId) {
         try {
           if (!interaction.replied && !interaction.deferred) {
             await interaction.reply({
-              content: '❌ Cannot enable notifications - your DMs are closed. Please open DMs and try again.',
-              ephemeral: true
+              components: [createDMsClosedComponents()],
+              flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2
             });
           }
         } catch (error) {
@@ -1035,8 +1135,8 @@ async function handleNotificationToggle(interaction, userId, guildId) {
 
       try {
         await interaction.followUp({
-          content: '🔔 Notifications enabled! You will receive a DM when the cooldown expires.',
-          ephemeral: true
+          components: [createNotificationEnabledComponents()],
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2
         });
       } catch (error) {
         console.log('Could not send followUp - interaction may have expired');
@@ -1048,7 +1148,7 @@ async function handleNotificationToggle(interaction, userId, guildId) {
       if (!interaction.replied && !interaction.deferred) {
         await interaction.reply({
           content: '❌ An error occurred while changing notification settings.',
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
     } catch (replyError) {
@@ -1072,6 +1172,7 @@ async function updateBellButtonOnly(interaction, userId) {
 
     const newActionRow = new ActionRowBuilder();
     
+    let unknownButtonIndex = 0;
     for (const component of actionRow.components) {
       if (component.customId === `toggle_notification_${userId}`) {
 
@@ -1083,12 +1184,15 @@ async function updateBellButtonOnly(interaction, userId) {
           .setDisabled(false);
         newActionRow.addComponents(bellButton);
       } else {
+        if (!component.customId || !component.label) {
+          continue;
+        }
 
         const button = new ButtonBuilder()
           .setCustomId(component.customId)
           .setLabel(component.label)
-          .setStyle(component.style)
-          .setDisabled(component.disabled);
+          .setStyle(component.style || ButtonStyle.Secondary)
+          .setDisabled(component.disabled || false);
         
         if (component.emoji) {
           button.setEmoji(component.emoji);
@@ -1098,9 +1202,13 @@ async function updateBellButtonOnly(interaction, userId) {
       }
     }
     
-    await interaction.update({
-      components: [newActionRow]
-    });
+    if (newActionRow.components.length > 0) {
+      await interaction.update({
+        components: [newActionRow]
+      });
+    } else {
+      await interaction.deferUpdate();
+    }
   } catch (error) {
     console.error('Error updating bell button:', error);
 
@@ -1126,7 +1234,7 @@ export async function handleModal(interaction) {
     if (!ponyData) {
       return interaction.editReply({
         content: 'Error: Pony not found!',
-        flags: [InteractionResponseFlags.Ephemeral]
+        flags: MessageFlags.Ephemeral
       });
     }
     
@@ -1163,16 +1271,15 @@ export async function handleModal(interaction) {
       
       if (!friendResult.success) {
         console.error(`[handlePonyEncounter] Failed to add friend: ${friendResult.error}`);
-        const errorEmbed = createEmbed({
-          title: '❌ Error Adding Friend',
-          description: `There was an error adding ${ponyData.name} to your friends list. Please try again later.`,
-          image: ponyData.image,
-          user: interaction.user,
-          thumbnail: interaction.user.displayAvatarURL({ dynamic: true })
-        });
+        const errorText = new TextDisplayBuilder()
+          .setContent(`**❌ Error Adding Friend**\n-# There was an error adding ${ponyData.name} to your friends list. Please try again later.`);
+
+        const errorContainer = new ContainerBuilder()
+          .addTextDisplayComponents(errorText);
+
         await interaction.editReply({ 
-          embeds: [errorEmbed],
-          ephemeral: true
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+          components: [errorContainer]
         });
         return;
       }
@@ -1218,31 +1325,37 @@ export async function handleModal(interaction) {
         factionPointsText = `\n\n⚔️ **+15 Faction Points** earned for your faction!`;
       }
       
-      const resultEmbed = createEmbed({
-        title: getSuccessTitle(ponyData.rarity, false, ponyData.background),
-        description: `> Excellent! You correctly identified **${ponyData.name}**!\n\n> *${ponyData.description}*\n\n> **Rarity:** ${RARITY_EMOJIS[ponyData.rarity]}\n> **+${bitsReward} bits**${resourceText}${duplicateText}${factionPointsText}\n${ponyData.name} has been added to your friends list!`,
-        image: ponyData.image,
-        user: interaction.user,
-        thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-        footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
-      });
-      await interaction.message.edit({ embeds: [resultEmbed], components: [] });
+      const headerText = new TextDisplayBuilder()
+        .setContent(`**${getSuccessTitle(ponyData.rarity, false, ponyData.background)}**\n-# Excellent! You correctly identified **${ponyData.name}**!`);
+
+      const descText = new TextDisplayBuilder()
+        .setContent(`*${ponyData.description}*\n\n**Rarity:** ${RARITY_EMOJIS[ponyData.rarity]}\n**+${bitsReward} bits**${resourceText}${duplicateText}${factionPointsText}\n${ponyData.name} has been added to your friends list!`);
+
+      const container = new ContainerBuilder()
+        .addTextDisplayComponents(headerText)
+        .addTextDisplayComponents(descText);
+
+      if (ponyData.image) {
+      }
+
+      await interaction.message.edit({ flags: MessageFlags.IsComponentsV2, components: [container] }).catch(err => console.error('Failed to edit message with result container:', err));
       await interaction.deleteReply();
       return;
     } else {
 
 
     
-      const wrongGuessEmbed = createEmbed({
-      title: getWrongTitle(ponyData.rarity, ponyData.background),
-      description: `> Sorry, that's not correct! You guessed "${guessedName}" but this was **${ponyData.name}**.\n\n> *${ponyData.description}*\n\n> **Rarity:** ${RARITY_EMOJIS[ponyData.rarity]}\n\n> Better luck next time!`,
-      image: ponyData.image,
-      user: interaction.user,
-      thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-      footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
-    });
-    
-      await interaction.message.edit({ embeds: [wrongGuessEmbed], components: [] });
+      const wrongHeader = new TextDisplayBuilder()
+        .setContent(`**${getWrongTitle(ponyData.rarity, ponyData.background)}**\n-# Sorry, that's not correct!`);
+
+      const wrongDesc = new TextDisplayBuilder()
+        .setContent(`You guessed "${guessedName}" but this was **${ponyData.name}**.\n\n*${ponyData.description}*\n\nBetter luck next time!`);
+
+      const wrongContainer = new ContainerBuilder()
+        .addTextDisplayComponents(wrongHeader)
+        .addTextDisplayComponents(wrongDesc);
+
+      await interaction.message.edit({ flags: MessageFlags.IsComponentsV2, components: [wrongContainer] }).catch(err => console.error('Failed to edit message with wrong-guess container:', err));
       await interaction.deleteReply();
     }
   } catch (error) {
@@ -1252,7 +1365,7 @@ export async function handleModal(interaction) {
       try {
         await interaction.editReply({
           content: 'An error occurred while processing your guess. Please try again.',
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       } catch (replyError) {
         console.error('Failed to send error reply:', replyError);
@@ -1261,7 +1374,7 @@ export async function handleModal(interaction) {
       try {
         await interaction.reply({
           content: 'An error occurred while processing your guess. Please try again.',
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       } catch (replyError) {
         console.error('Failed to send error reply:', replyError);
@@ -1347,17 +1460,17 @@ async function handleRegularVenture(interaction, pony) {
     ];
     const randomMessage = ventureMessages[Math.floor(Math.random() * ventureMessages.length)];
     
-    const ventureEmbed = createEmbed({
-      title: '🗺️ Adventure Complete!',
-      description: `${randomMessage}\n\nYou found <:bits:1411354539935666197> **${bitsEarned} bits**!${rewardText}`,
-      user: interaction.user,
-      thumbnail: interaction.user.displayAvatarURL({ dynamic: true }),
-      footer: { text: "Support the bot! Use /vote to get free diamonds and keys!" }
-    });
-    
-    return interaction.editReply({
-      embeds: [ventureEmbed]
-    });
+    const headerText = new TextDisplayBuilder()
+      .setContent('**🗺️ Adventure Complete!**\n-# Your venture concluded successfully');
+
+    const descText = new TextDisplayBuilder()
+      .setContent(`${randomMessage}\n\nYou found <:bits:1411354539935666197> **${bitsEarned} bits**!${rewardText}`);
+
+    const container = new ContainerBuilder()
+      .addTextDisplayComponents(headerText)
+      .addTextDisplayComponents(descText);
+
+    return interaction.editReply({ flags: MessageFlags.IsComponentsV2, components: [container] });
     
   } catch (error) {
     console.error('Error handling regular venture:', error);
@@ -1373,17 +1486,22 @@ export async function handleNotificationButton(interaction) {
 
     if (interaction.user.id !== userId) {
       try {
+        const accessDeniedText = new TextDisplayBuilder()
+          .setContent('You can only toggle your own notification settings!');
+        
+        const accessDeniedContainer = new ContainerBuilder()
+          .addTextDisplayComponents(accessDeniedText);
 
         if (!interaction.replied && !interaction.deferred) {
           await interaction.reply({ 
-            content: "You can only toggle your own notification settings!", 
-            ephemeral: true 
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            components: [accessDeniedContainer]
           });
         } else {
 
           await interaction.followUp({ 
-            content: "You can only toggle your own notification settings!", 
-            ephemeral: true 
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            components: [accessDeniedContainer]
           });
         }
       } catch (error) {

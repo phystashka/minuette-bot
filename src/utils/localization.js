@@ -288,7 +288,7 @@ export const translations = {
     'venture.reward': 'You earned',
     'venture.cooldown_title': 'Cooldown',
     'venture.cooldown_message': '> 🍪 Time to eat a cookie while you\'re waiting for your next adventure!\n> Please wait `{minutes}m {seconds}s` before venturing out again.',
-    'venture.encountered_pony': '> While exploring Equestria, you encountered a pony{unique}.\n\n> **Rarity:** {rarity}\n> **Name:** `{name}`',
+    'venture.encountered_pony': 'While exploring Equestria, you encountered a pony{unique}.\n\n**Name:** `{name}`',
     'venture.unique': ' (Unique!)',
     'venture.not_for_you': 'This interaction is not for you!',
     'venture.not_enough_bits': '❌ Not enough bits',

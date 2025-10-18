@@ -1,5 +1,9 @@
 import { 
-  SlashCommandBuilder
+  SlashCommandBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags
 } from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { getPony, addBits, removeBits } from '../../utils/pony/index.js';
@@ -27,6 +31,77 @@ async function getRandomMessage(key, guildId, placeholders = {}) {
   return messages;
 }
 
+function createErrorContainer(title, description) {
+  const container = new ContainerBuilder();
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent(`❌ **${title}**`);
+  container.addTextDisplayComponents(titleText);
+  
+  const descText = new TextDisplayBuilder()
+    .setContent(description);
+  container.addTextDisplayComponents(descText);
+  
+  return container;
+}
+
+function createCooldownContainer(title, description) {
+  const container = new ContainerBuilder();
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent(`⏰ **${title}**`);
+  container.addTextDisplayComponents(titleText);
+  
+  const descText = new TextDisplayBuilder()
+    .setContent(description);
+  container.addTextDisplayComponents(descText);
+  
+  return container;
+}
+
+function createSuccessContainer(title, message, stealAmount) {
+  const container = new ContainerBuilder();
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent(`**${title}**`);
+  container.addTextDisplayComponents(titleText);
+  
+  const descText = new TextDisplayBuilder()
+    .setContent(message);
+  container.addTextDisplayComponents(descText);
+  
+  const separator = new SeparatorBuilder();
+  container.addSeparatorComponents(separator);
+  
+  const resultText = new TextDisplayBuilder()
+    .setContent(`**+${stealAmount} bits** <:bits:1429131029628588153>\n<:harmony:1416514347789844541> **-10 harmony**`);
+  container.addTextDisplayComponents(resultText);
+  
+  return container;
+}
+
+
+function createFailureContainer(title, message, penaltyAmount) {
+  const container = new ContainerBuilder();
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent(`**${title}**`);
+  container.addTextDisplayComponents(titleText);
+  
+  const descText = new TextDisplayBuilder()
+    .setContent(message);
+  container.addTextDisplayComponents(descText);
+  
+  const separator = new SeparatorBuilder();
+  container.addSeparatorComponents(separator);
+  
+  const resultText = new TextDisplayBuilder()
+    .setContent(`**-${penaltyAmount} bits** <:bits:1429131029628588153>\n<:harmony:1416514347789844541> **-5 harmony**`);
+  container.addTextDisplayComponents(resultText);
+  
+  return container;
+}
+
 export const data = new SlashCommandBuilder()
   .setName('crime')
   .setDescription('Try to steal bits from another player (50/50 chance)')
@@ -37,7 +112,7 @@ export const data = new SlashCommandBuilder()
   .addUserOption(option =>
     option
       .setName('target')
-      .setDescription('The player you want to steal bits from')
+      .setDescription('The member you want to steal bits from')
       .setDescriptionLocalizations({
         'ru': 'Игрок, у которого вы хотите украсть биты'
       })
@@ -52,15 +127,14 @@ export async function execute(interaction) {
     const guildId = interaction.guild?.id;
     
     if (userId === targetId) {
+      const container = createErrorContainer(
+        await t('error.title', guildId),
+        await t('crime.self_target', guildId)
+      );
+      
       return interaction.reply({
-        embeds: [
-          createEmbed({
-            title: await t('error.title', guildId),
-            description: await t('crime.self_target', guildId),
-            user: interaction.user
-          })
-        ],
-        ephemeral: true
+        components: [container],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
     }
 
@@ -71,70 +145,66 @@ export async function execute(interaction) {
       if (timeLeft > 0) {
         const hours = Math.ceil(timeLeft / 3600000);
         
+        const container = createCooldownContainer(
+          await t('crime.title', guildId),
+          await t('crime.cooldown', guildId, { hours })
+        );
+        
         return interaction.reply({
-          embeds: [
-            createEmbed({
-              title: await t('crime.title', guildId),
-              description: await t('crime.cooldown', guildId, { hours }),
-              user: interaction.user
-            })
-          ],
-          ephemeral: true
+          components: [container],
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
       }
     }
+    
     const userPony = await getPony(userId);
     const targetPony = await getPony(targetId);
 
     if (!userPony) {
+      const container = createErrorContainer(
+        await t('equestria.no_pony_title', guildId),
+        await t('equestria.no_pony_description', guildId)
+      );
+      
       return interaction.reply({
-        embeds: [
-          createEmbed({
-            title: await t('equestria.no_pony_title', guildId),
-            description: await t('equestria.no_pony_description', guildId),
-            user: interaction.user
-          })
-        ],
-        ephemeral: true
+        components: [container],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
     }
     
     if (!targetPony) {
+      const container = createErrorContainer(
+        await t('error.title', guildId),
+        await t('crime.no_target_pony', guildId)
+      );
+      
       return interaction.reply({
-        embeds: [
-          createEmbed({
-            title: await t('error.title', guildId),
-            description: await t('crime.no_target_pony', guildId),
-            user: interaction.user
-          })
-        ],
-        ephemeral: true
+        components: [container],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
     }
 
     if (targetPony.bits <= 0) {
+      const container = createErrorContainer(
+        await t('error.title', guildId),
+        await t('crime.no_target_bits', guildId, { target: targetUser.username })
+      );
+      
       return interaction.reply({
-        embeds: [
-          createEmbed({
-            title: await t('error.title', guildId),
-            description: await t('crime.no_target_bits', guildId, { target: targetUser.username }),
-            user: interaction.user
-          })
-        ],
-        ephemeral: true
+        components: [container],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
     }
 
     if (userPony.bits <= 0) {
+      const container = createErrorContainer(
+        await t('error.title', guildId),
+        await t('crime.no_user_bits', guildId)
+      );
+      
       return interaction.reply({
-        embeds: [
-          createEmbed({
-            title: await t('error.title', guildId),
-            description: await t('crime.no_user_bits', guildId),
-            user: interaction.user
-          })
-        ],
-        ephemeral: true
+        components: [container],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
     }
     
@@ -146,9 +216,7 @@ export async function execute(interaction) {
     if (isSuccess) {
       await addBits(userId, stealAmount);
       await removeBits(targetId, stealAmount);
-
       await removeHarmony(userId, 10, 'Successful crime');
-      
 
       try {
         const { addQuestProgress } = await import('../../utils/questUtils.js');
@@ -163,19 +231,18 @@ export async function execute(interaction) {
         amount: stealAmount
       });
       
-      const successEmbed = createEmbed({
-        title: await t('crime.success', guildId),
-        description: `${successMessage}\n\n> **+${stealAmount} bits**\n> <:harmony:1416514347789844541> **-10 harmony**`,
-        user: interaction.user
-      });
+      const container = createSuccessContainer(
+        await t('crime.success', guildId),
+        successMessage,
+        stealAmount.toLocaleString()
+      );
       
       await interaction.reply({
-        content: `${targetUser}`,
-        embeds: [successEmbed]
+        components: [container],
+        flags: MessageFlags.IsComponentsV2
       });
     } else {
       await removeBits(userId, penaltyAmount);
-      
       await removeHarmony(userId, 5, 'Failed crime attempt');
       
       const failMessage = await getRandomMessage('crime.fail_messages', guildId, {
@@ -183,15 +250,15 @@ export async function execute(interaction) {
         amount: penaltyAmount
       });
       
-      const failEmbed = createEmbed({
-        title: await t('crime.failure', guildId),
-        description: `${failMessage}\n\n> **-${penaltyAmount} bits**\n> <:harmony:1416514347789844541> **-5 harmony**`,
-        user: interaction.user
-      });
+      const container = createFailureContainer(
+        await t('crime.failure', guildId),
+        failMessage,
+        penaltyAmount.toLocaleString()
+      );
       
       await interaction.reply({
-        content: `${targetUser}`,
-        embeds: [failEmbed]
+        components: [container],
+        flags: MessageFlags.IsComponentsV2
       });
     }
     
@@ -200,15 +267,14 @@ export async function execute(interaction) {
   } catch (error) {
     console.error('Error in crime command:', error);
     
+    const container = createErrorContainer(
+      await t('error.title', interaction.guild?.id),
+      await t('error.generic', interaction.guild?.id)
+    );
+    
     return interaction.reply({
-      embeds: [
-        createEmbed({
-          title: await t('error.title', interaction.guild?.id),
-          description: await t('error.generic', interaction.guild?.id),
-          user: interaction.user
-        })
-      ],
-      ephemeral: true
+      components: [container],
+      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
     });
   }
 } 

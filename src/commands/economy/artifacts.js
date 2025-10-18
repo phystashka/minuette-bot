@@ -3,13 +3,19 @@ import {
   StringSelectMenuBuilder, 
   ActionRowBuilder,
   ButtonBuilder,
-  ButtonStyle
+  ButtonStyle,
+  MessageFlags,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder
 } from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { getPony, removeBits } from '../../utils/pony/index.js';
 import { getRow, query } from '../../utils/database.js';
 import { getActiveArtifact } from '../../utils/artifactManager.js';
 import { startServerCharms } from '../../utils/autoSpawn.js';
+import { formatVoiceTime } from '../../utils/timeUtils.js';
 
 export const data = new SlashCommandBuilder()
   .setName('artifacts')
@@ -43,6 +49,140 @@ const ARTIFACTS = {
   }
 };
 
+async function getUserActiveArtifacts(userId, guildId) {
+  const activeArtifacts = await query(
+    'SELECT * FROM active_artifacts WHERE (user_id = ? OR guild_id = ?) AND expires_at > ?',
+    [userId, guildId, Date.now()]
+  );
+  return activeArtifacts;
+}
+
+function formatArtifactTime(expiresAt) {
+  const timestamp = Math.floor(expiresAt / 1000);
+  return `<t:${timestamp}:R>`; 
+}
+
+function createArtifactsMainContainer(user, userBits, spawnChannel, activeArtifacts) {
+  const container = new ContainerBuilder();
+  
+  const headerText = new TextDisplayBuilder()
+    .setContent('**Ancient Equestrian Artifacts**\n\n**Mystical relics from the depths of Equestrian history, each carrying immense magical power...**');
+  
+  container.addTextDisplayComponents(headerText);
+
+  if (activeArtifacts && activeArtifacts.length > 0) {
+    let statusText = '**🟢 Active Artifacts:**\n';
+    activeArtifacts.forEach(artifact => {
+      const artifactName = ARTIFACTS[artifact.artifact_type]?.name || artifact.artifact_type;
+      const timeRemaining = formatArtifactTime(artifact.expires_at);
+      statusText += `${artifactName} - expires ${timeRemaining}\n`;
+    });
+    
+    const statusDisplay = new TextDisplayBuilder().setContent(statusText);
+    container.addTextDisplayComponents(statusDisplay);
+  } else {
+    const noActiveText = new TextDisplayBuilder()
+      .setContent('**📋 Status:** No active artifacts');
+    container.addTextDisplayComponents(noActiveText);
+  }
+  
+
+  if (!spawnChannel) {
+    const warningText = new TextDisplayBuilder()
+      .setContent('⚠️ **Server-wide artifacts require an autospawn channel to be set!** Ask an admin to use `/set_spawn` first.');
+    container.addTextDisplayComponents(warningText);
+  }
+  
+  const separator = new SeparatorBuilder();
+  container.addSeparatorComponents(separator);
+  
+  return container;
+}
+
+function createArtifactSelectMenu(userId) {
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId(`artifact_preview_${userId}`)
+    .setPlaceholder('Select an artifact to examine')
+    .addOptions([
+      {
+        label: `${ARTIFACTS.charm_of_binding.name} - ${ARTIFACTS.charm_of_binding.cost.toLocaleString()} bits`,
+        description: 'Personal autocatch for common ponies',
+        value: 'charm_of_binding'
+      },
+      {
+        label: `${ARTIFACTS.server_charms.name} - ${ARTIFACTS.server_charms.cost.toLocaleString()} bits`,
+        description: 'Increased spawn rate server-wide',
+        value: 'server_charms'
+      },
+      {
+        label: `${ARTIFACTS.blessing_of_fortuna.name} - ${ARTIFACTS.blessing_of_fortuna.cost.toLocaleString()} bits`,
+        description: 'Better rare pony chances server-wide',
+        value: 'blessing_of_fortuna'
+      }
+    ]);
+  
+  return new ActionRowBuilder().addComponents(selectMenu);
+}
+
+function createArtifactDetailContainer(user, artifact, userBits, activeArtifact, artifactType, userId) {
+  const container = new ContainerBuilder();
+  
+  let statusText = '';
+  if (activeArtifact) {
+    const timeFormatted = formatArtifactTime(activeArtifact.expires_at);
+    statusText = `\n\n🟢 **ACTIVE** - expires ${timeFormatted}`;
+  }
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent(`**${artifact.name}**`);
+  
+  const descText = new TextDisplayBuilder()
+    .setContent(`${artifact.description}\n\n**Type:** ${artifact.type}\n**Effect:** ${artifact.effect}\n**Cost:** ${artifact.cost.toLocaleString()} <:bits:1429131029628588153>${statusText}`);
+  
+  const footerText = new TextDisplayBuilder()
+    .setContent(`-# Your bits: ${userBits.toLocaleString()} | Artifact cost: ${artifact.cost.toLocaleString()}`);
+  
+  container
+    .addTextDisplayComponents(titleText)
+    .addTextDisplayComponents(descText)
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(footerText);
+
+  const selectRow = createArtifactSelectMenu(userId);
+  container.addActionRowComponents(selectRow);
+  
+  const backButton = new ButtonBuilder()
+    .setCustomId(`artifact_back_${userId}`)
+    .setEmoji('<:previous:1422550660401860738>')
+    .setStyle(ButtonStyle.Secondary);
+    
+  const backRow = new ActionRowBuilder().addComponents(backButton);
+  container.addActionRowComponents(backRow);
+  
+  return container;
+}
+
+function createPurchaseSuccessContainer(user, artifact, remainingBits) {
+  const container = new ContainerBuilder();
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent('**🎉 Artifact Activated!**');
+  
+  const successText = new TextDisplayBuilder()
+    .setContent(`**${artifact.name}** has been successfully activated!\n\n${artifact.description}\n\n**Duration:** ${artifact.type}\n**Effect:** ${artifact.effect}`);
+  
+  const footerText = new TextDisplayBuilder()
+    .setContent(`-# Remaining bits: ${remainingBits.toLocaleString()}`);
+  
+  container
+    .addTextDisplayComponents(titleText)
+    .addTextDisplayComponents(successText)
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(footerText);
+  
+  return container;
+}
+
 export async function execute(interaction) {
   try {
     const userId = interaction.user.id;
@@ -51,53 +191,31 @@ export async function execute(interaction) {
     const userBits = userPony ? userPony.bits : 0;
 
     const spawnChannel = await getRow('SELECT channel_id FROM spawn_channels WHERE guild_id = ?', [guildId]);
+    const activeArtifacts = await getUserActiveArtifacts(userId, guildId);
     
-    const embed = createEmbed({
-      title: 'Ancient Equestrian Artifacts',
-      description: `${interaction.user}, **Your <:bits:1411354539935666197>:** ${userBits}\n\n**Mystical relics from the depths of Equestrian history, each carrying immense magical power...**\n\n${!spawnChannel ? '⚠️ **Server-wide artifacts require an autospawn channel to be set!** Ask an admin to use `/set_spawn` first.' : ''}`,
-      user: interaction.user,
-      color: 0x8A2BE2
-    });
+    const container = createArtifactsMainContainer(interaction.user, userBits, spawnChannel, activeArtifacts);
 
-    const selectMenu = new StringSelectMenuBuilder()
-      .setCustomId(`artifact_preview_${userId}`)
-      .setPlaceholder('Select an artifact to examine')
-      .addOptions([
-        {
-          label: `${ARTIFACTS.charm_of_binding.name} - ${ARTIFACTS.charm_of_binding.cost.toLocaleString()} bits`,
-          description: 'Personal autocatch for common ponies',
-          value: 'charm_of_binding'
-        },
-        {
-          label: `${ARTIFACTS.server_charms.name} - ${ARTIFACTS.server_charms.cost.toLocaleString()} bits`,
-          description: 'Increased spawn rate server-wide',
-          value: 'server_charms'
-        },
-        {
-          label: `${ARTIFACTS.blessing_of_fortuna.name} - ${ARTIFACTS.blessing_of_fortuna.cost.toLocaleString()} bits`,
-          description: 'Better rare pony chances server-wide',
-          value: 'blessing_of_fortuna'
-        }
-      ]);
-
-    const row = new ActionRowBuilder().addComponents(selectMenu);
+    const selectRow = createArtifactSelectMenu(userId);
+    container.addActionRowComponents(selectRow);
 
     return interaction.reply({ 
-      embeds: [embed], 
-      components: [row] 
+      components: [container],
+      flags: MessageFlags.IsComponentsV2
     });
 
   } catch (error) {
     console.error('Error in artifacts command:', error);
     
-    const embed = createEmbed({
-      title: 'Ancient Artifacts',
-      description: 'An error occurred while accessing the artifacts.',
-      color: 0xFF0000,
-      user: interaction.user
-    });
+    const errorContainer = new ContainerBuilder();
+    const errorText = new TextDisplayBuilder()
+      .setContent('**❌ Error**\n-# An error occurred while accessing the artifacts.');
+    errorContainer.addTextDisplayComponents(errorText);
 
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    return interaction.reply({ 
+      components: [errorContainer], 
+      ephemeral: true,
+      flags: MessageFlags.IsComponentsV2
+    });
   }
 }
 
@@ -108,17 +226,65 @@ export async function handleInteraction(interaction) {
   const guildId = interaction.guild.id;
 
   try {
+    if (interaction.customId.startsWith('artifact_back_')) {
+      const expectedUserId = interaction.customId.split('_').pop();
+      
+      if (userId !== expectedUserId) {
+        const errorContainer = new ContainerBuilder();
+        const errorText = new TextDisplayBuilder()
+          .setContent('You cannot use someone else\'s artifacts menu!');
+        errorContainer.addTextDisplayComponents(errorText);
+        
+        return interaction.update({ 
+          components: [errorContainer], 
+          flags: MessageFlags.IsComponentsV2
+        });
+      }
+
+      const userPony = await getPony(userId);
+      const userBits = userPony ? userPony.bits : 0;
+      const spawnChannel = await getRow('SELECT channel_id FROM spawn_channels WHERE guild_id = ?', [guildId]);
+      const activeArtifacts = await getUserActiveArtifacts(userId, guildId);
+      
+      const container = createArtifactsMainContainer(interaction.user, userBits, spawnChannel, activeArtifacts);
+      const selectRow = createArtifactSelectMenu(userId);
+      container.addActionRowComponents(selectRow);
+      
+      return interaction.update({ 
+        components: [container],
+        flags: MessageFlags.IsComponentsV2
+      });
+    }
+    
     if (interaction.customId.startsWith('artifact_preview_')) {
       const expectedUserId = interaction.customId.split('_').pop();
       if (userId !== expectedUserId) {
-        return interaction.reply({ content: 'You cannot use someone else\'s artifact selection!', ephemeral: true });
+        const errorContainer = new ContainerBuilder();
+        const errorText = new TextDisplayBuilder()
+          .setContent('You cannot use someone else\'s artifact selection!');
+        errorContainer.addTextDisplayComponents(errorText);
+        
+        return interaction.reply({ 
+          components: [errorContainer], 
+          ephemeral: true,
+          flags: MessageFlags.IsComponentsV2
+        });
       }
       
       const artifactType = interaction.values[0];
       const artifact = ARTIFACTS[artifactType];
       
       if (!artifact) {
-        return interaction.reply({ content: 'Unknown artifact!', ephemeral: true });
+        const errorContainer = new ContainerBuilder();
+        const errorText = new TextDisplayBuilder()
+          .setContent('**❌ Unknown Artifact**\n-# The selected artifact was not found.');
+        errorContainer.addTextDisplayComponents(errorText);
+        
+        return interaction.reply({ 
+          components: [errorContainer], 
+          ephemeral: true,
+          flags: MessageFlags.IsComponentsV2
+        });
       }
 
       const userPony = await getPony(userId);
@@ -127,9 +293,15 @@ export async function handleInteraction(interaction) {
       
       const isServerWide = artifactType !== 'charm_of_binding';
       if (isServerWide && !spawnChannel) {
+        const errorContainer = new ContainerBuilder();
+        const errorText = new TextDisplayBuilder()
+          .setContent('**⚠️ Configuration Required**\n-# This artifact requires an autospawn channel to be configured! Ask a server admin to use `/set_spawn` first.');
+        errorContainer.addTextDisplayComponents(errorText);
+        
         return interaction.reply({ 
-          content: '⚠️ This artifact requires an autospawn channel to be configured! Ask a server admin to use `/set_spawn` first.', 
-          ephemeral: true 
+          components: [errorContainer], 
+          ephemeral: true,
+          flags: MessageFlags.IsComponentsV2
         });
       }
 
@@ -146,16 +318,8 @@ export async function handleInteraction(interaction) {
         embedColor = 0x00FF00;
       }
 
-      const embed = createEmbed({
-        title: `${artifact.name}`,
-        description: `${artifact.description}\n\n**Type:** ${artifact.type}\n**Effect:** ${artifact.effect}\n**Cost:** ${artifact.cost.toLocaleString()} <:bits:1411354539935666197>${statusText}`,
-        color: embedColor,
-        user: interaction.user
-      });
+      const container = createArtifactDetailContainer(interaction.user, artifact, userBits, activeArtifact, artifactType, userId);
 
-      embed.setFooter({ text: `Your bits: ${userBits.toLocaleString()} | Artifact cost: ${artifact.cost.toLocaleString()}` });
-
-      const components = [];
       if (activeArtifact) {
         const activeButton = new ButtonBuilder()
           .setCustomId('artifact_already_active')
@@ -164,14 +328,16 @@ export async function handleInteraction(interaction) {
           .setEmoji('🟢')
           .setDisabled(true);
         
-        components.push(new ActionRowBuilder().addComponents(activeButton));
+        const buttonRow = new ActionRowBuilder().addComponents(activeButton);
+        container.addActionRowComponents(buttonRow);
       } else if (userBits >= artifact.cost) {
         const purchaseButton = new ButtonBuilder()
           .setCustomId(`artifact_purchase_${artifactType}_${userId}`)
           .setLabel(`Purchase for ${artifact.cost.toLocaleString()} bits`)
           .setStyle(ButtonStyle.Success);
         
-        components.push(new ActionRowBuilder().addComponents(purchaseButton));
+        const buttonRow = new ActionRowBuilder().addComponents(purchaseButton);
+        container.addActionRowComponents(buttonRow);
       } else {
         const insufficientButton = new ButtonBuilder()
           .setCustomId('insufficient_bits')
@@ -179,12 +345,13 @@ export async function handleInteraction(interaction) {
           .setStyle(ButtonStyle.Danger)
           .setDisabled(true);
         
-        components.push(new ActionRowBuilder().addComponents(insufficientButton));
+        const buttonRow = new ActionRowBuilder().addComponents(insufficientButton);
+        container.addActionRowComponents(buttonRow);
       }
 
       return interaction.update({ 
-        embeds: [embed], 
-        components: components 
+        components: [container],
+        flags: MessageFlags.IsComponentsV2
       });
     }
 
@@ -194,7 +361,16 @@ export async function handleInteraction(interaction) {
       const targetUserId = parts[parts.length - 1];
 
       if (userId !== targetUserId) {
-        return interaction.reply({ content: 'You cannot purchase artifacts for other users!', ephemeral: true });
+        const errorContainer = new ContainerBuilder();
+        const errorText = new TextDisplayBuilder()
+          .setContent('You cannot purchase artifacts for other users!');
+        errorContainer.addTextDisplayComponents(errorText);
+        
+        return interaction.reply({ 
+          components: [errorContainer], 
+          ephemeral: true,
+          flags: MessageFlags.IsComponentsV2
+        });
       }
 
       await handleArtifactPurchase(interaction, artifactType, userId, guildId);
@@ -203,14 +379,26 @@ export async function handleInteraction(interaction) {
   } catch (error) {
     console.error('Error handling artifact interaction:', error);
     
-    const embed = createEmbed({
-      title: 'Purchase Error',
-      description: 'An error occurred while processing your purchase.',
-      color: 0xFF0000,
-      user: interaction.user
-    });
+    const errorContainer = new ContainerBuilder();
+    const errorText = new TextDisplayBuilder()
+      .setContent('**❌ Error**\n-# An error occurred while processing your request.');
+    errorContainer.addTextDisplayComponents(errorText);
 
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    try {
+      if (interaction.deferred || interaction.replied) {
+        return interaction.editReply({ 
+          components: [errorContainer], 
+          flags: MessageFlags.IsComponentsV2
+        });
+      } else {
+        return interaction.update({ 
+          components: [errorContainer], 
+          flags: MessageFlags.IsComponentsV2
+        });
+      }
+    } catch (updateError) {
+      console.error('Error updating interaction after error:', updateError);
+    }
   }
 }
 
@@ -218,16 +406,31 @@ async function handleArtifactPurchase(interaction, artifactType, userId, guildId
   const artifact = ARTIFACTS[artifactType];
   
   if (!artifact) {
-    return interaction.reply({ content: 'Invalid artifact!', ephemeral: true });
+    const errorContainer = new ContainerBuilder();
+    const errorText = new TextDisplayBuilder()
+      .setContent('**❌ Invalid Artifact**\n-# The requested artifact is not valid.');
+    errorContainer.addTextDisplayComponents(errorText);
+    
+    return interaction.reply({ 
+      components: [errorContainer], 
+      ephemeral: true,
+      flags: MessageFlags.IsComponentsV2
+    });
   }
 
   const userPony = await getPony(userId);
   const userBits = userPony ? userPony.bits : 0;
   
   if (userBits < artifact.cost) {
+    const errorContainer = new ContainerBuilder();
+    const errorText = new TextDisplayBuilder()
+      .setContent(`**❌ Insufficient Bits**\n-# You need ${(artifact.cost - userBits).toLocaleString()} more bits.`);
+    errorContainer.addTextDisplayComponents(errorText);
+    
     return interaction.reply({ 
-      content: `Insufficient bits! You need ${(artifact.cost - userBits).toLocaleString()} more bits.`, 
-      ephemeral: true 
+      components: [errorContainer], 
+      ephemeral: true,
+      flags: MessageFlags.IsComponentsV2
     });
   }
 
@@ -238,9 +441,15 @@ async function handleArtifactPurchase(interaction, artifactType, userId, guildId
 
   if (existingArtifact) {
     const remainingTime = Math.ceil((existingArtifact.expires_at - Date.now()) / 1000 / 60);
+    const errorContainer = new ContainerBuilder();
+    const errorText = new TextDisplayBuilder()
+      .setContent(`**⚠️ Already Active**\n-# You already have an active ${artifact.name}! It expires in ${remainingTime} minutes.`);
+    errorContainer.addTextDisplayComponents(errorText);
+    
     return interaction.reply({ 
-      content: `You already have an active ${artifact.name}! It expires in ${remainingTime} minutes.`, 
-      ephemeral: true 
+      components: [errorContainer], 
+      ephemeral: true,
+      flags: MessageFlags.IsComponentsV2
     });
   }
 
@@ -252,9 +461,15 @@ async function handleArtifactPurchase(interaction, artifactType, userId, guildId
 
     if (existingServerArtifact) {
       const remainingTime = Math.ceil((existingServerArtifact.expires_at - Date.now()) / 1000 / 60);
+      const errorContainer = new ContainerBuilder();
+      const errorText = new TextDisplayBuilder()
+        .setContent(`**⚠️ Server Already Active**\n-# This server already has an active ${artifact.name}! It expires in ${remainingTime} minutes.`);
+      errorContainer.addTextDisplayComponents(errorText);
+      
       return interaction.reply({ 
-        content: `This server already has an active ${artifact.name}! It expires in ${remainingTime} minutes.`, 
-        ephemeral: true 
+        components: [errorContainer], 
+        ephemeral: true,
+        flags: MessageFlags.IsComponentsV2
       });
     }
   }
@@ -277,17 +492,10 @@ async function handleArtifactPurchase(interaction, artifactType, userId, guildId
     await refreshAutocatchCache(guildId);
   }
 
-  const embed = createEmbed({
-    title: `Artifact Activated!`,
-    description: `**${artifact.name}** has been successfully activated!\n\n${artifact.description}\n\n**Duration:** ${artifact.type}\n**Effect:** ${artifact.effect}`,
-    color: 0x00FF00,
-    user: interaction.user
-  });
-
-  embed.setFooter({ text: `Remaining bits: ${(userBits - artifact.cost).toLocaleString()}` });
+  const container = createPurchaseSuccessContainer(interaction.user, artifact, userBits - artifact.cost);
 
   return interaction.update({ 
-    embeds: [embed], 
-    components: [] 
+    components: [container],
+    flags: MessageFlags.IsComponentsV2
   });
 }

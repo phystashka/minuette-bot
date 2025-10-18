@@ -1,5 +1,5 @@
-import { ButtonBuilder, ButtonStyle, ActionRowBuilder, EmbedBuilder, AttachmentBuilder } from 'discord.js';
-
+import { ButtonBuilder, ButtonStyle, ActionRowBuilder, EmbedBuilder, AttachmentBuilder, MessageFlags } from 'discord.js';
+import { canUseTesting } from '../utils/permissions.js';
 
 const CACHE_EXPIRY = 5 * 60 * 1000;
 
@@ -25,6 +25,7 @@ import { getMarriageByUser, deleteMarriage } from '../models/MarriageModel.js';
 import { getChildrenByParents, getAdoptionByChild, deleteAdoption, getFamilyByMember } from '../models/AdoptionModel.js';
 import { handleDerpiPagination } from '../utils/derpi/index.js';
 import { handleCaseButton } from '../commands/economy/case.js';
+import { handleInventoryInteraction } from '../commands/economy/inventory.js';
 import { handleBundlePreview, handleBundlePurchase } from '../commands/economy/donate_shop.js';
 import { requirePony } from '../utils/pony/index.js';
 import { 
@@ -61,7 +62,7 @@ export const execute = async (interaction) => {
       return;
     }
 
-    if (process.env.NODE_ENV === 'development' && interaction.user.id !== '1372601851781972038') {
+    if (process.env.NODE_ENV === 'development' && !canUseTesting(interaction.user.id)) {
       return interaction.reply({
         content: 'I lost my toothpaste <a:shook:1425845208658219128><a:shook:1425845208658219128><a:shook:1425845208658219128>',
         ephemeral: true
@@ -121,7 +122,7 @@ export const execute = async (interaction) => {
   }
   
   if (interaction.isButton()) {
-    if (process.env.NODE_ENV === 'development' && interaction.user.id !== '1372601851781972038') {
+    if (process.env.NODE_ENV === 'development' && !canUseTesting(interaction.user.id)) {
       return interaction.reply({
         content: 'I lost my toothpaste <a:shook:1425845208658219128><a:shook:1425845208658219128><a:shook:1425845208658219128>',
         ephemeral: true
@@ -558,8 +559,117 @@ Purchase at least two collections to support the bot and unlock exclusive featur
         return await handleCaseButton(interaction);
       }
       
+      if (customId.startsWith('inventory_')) {
+        return await handleInventoryInteraction(interaction);
+      }
+      
+      if (customId.startsWith('myponies_')) {
+        const messageOwnerId = interaction.message?.interaction?.user?.id;
+        if (messageOwnerId && messageOwnerId !== interaction.user.id) {
+          const { createAccessErrorContainer } = await import('../commands/economy/myponies.js');
+          const container = createAccessErrorContainer(
+            'This is not your ponies list!'
+          );
+          
+          return interaction.reply({
+            components: [container],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+          });
+        }
+        
+        await interaction.deferUpdate();
+        
+        const { showPonyListPage } = await import('../commands/economy/myponies.js');
+        
+        const userId = interaction.user.id;
+        const customId = interaction.customId;
+ 
+        const { userPonyData } = await import('../commands/economy/myponies.js');
+        const storedUserData = userPonyData.get(userId);
+        const currentSearchQuery = storedUserData?.searchQuery || '';
+        
+        if (customId.startsWith('myponies_filter_')) {
+          const newFilter = customId.replace('myponies_filter_', '');
+          const currentSortBy = storedUserData?.sortBy || 'id';
+          const currentFavoritesOnly = storedUserData?.favoritesOnly || false;
+          return await showPonyListPage(interaction, userId, 1, newFilter, currentSearchQuery, currentSortBy, currentFavoritesOnly);
+        } 
+        
+        if (customId.startsWith('myponies_sort_')) {
+          const newSortBy = customId.replace('myponies_sort_', '');
+          const currentFilter = storedUserData?.filter || 'all';
+          const currentFavoritesOnly = storedUserData?.favoritesOnly || false;
+          return await showPonyListPage(interaction, userId, 1, currentFilter, currentSearchQuery, newSortBy, currentFavoritesOnly);
+        } 
+        
+        if (customId.startsWith('myponies_favorites_')) {
+          const favAction = customId.replace('myponies_favorites_', '');
+          const newFavoritesOnly = favAction === 'on';
+          const currentFilter = storedUserData?.filter || 'all';
+          const currentSortBy = storedUserData?.sortBy || 'id';
+
+          const { isDonator } = await import('../models/DonatorModel.js');
+          const { getUserFriends } = await import('../models/FriendshipModel.js');
+          const { createEmbed } = await import('../utils/components.js');
+          
+          const userIsDonator = await isDonator(userId);
+          const allUserFriends = await getUserFriends(userId, false);
+          const hasFavorites = allUserFriends.some(pony => pony.is_favorite === 1);
+          
+          if (!userIsDonator && newFavoritesOnly) {
+            return interaction.followUp({
+              embeds: [createEmbed({
+                title: 'Donators Only! 🎁',
+                description: 'The favorites filter is only available for donators!\n\nTo become a donator, use `/donate` and purchase at least two collections.',
+                color: 0x03168f
+              })],
+              ephemeral: true
+            });
+          }
+          
+          if (!hasFavorites && newFavoritesOnly) {
+            return interaction.followUp({
+              embeds: [createEmbed({
+                title: 'No Favorites! ❤️',
+                description: 'You don\'t have any favorite ponies yet!\n\nTo add favorites, use `/favorite` command with a pony ID.',
+                color: 0x03168f
+              })],
+              ephemeral: true
+            });
+          }
+          
+          return await showPonyListPage(interaction, userId, 1, currentFilter, currentSearchQuery, currentSortBy, newFavoritesOnly);
+        } 
+        
+        if (customId.startsWith('myponies_')) {
+          const parts = customId.split('_');
+          const action = parts[1];
+          
+          let newPage = 1;
+          
+          if (action === 'first') {
+            newPage = 1;
+          } else if (action === 'last') {
+            newPage = parseInt(parts[2]);
+          } else if (action === 'prev' || action === 'next') {
+            newPage = parseInt(parts[2]);
+          }
+          
+          const filter = parts[parts.length - 1];
+          const currentSortBy = storedUserData?.sortBy || 'id';
+          const currentFavoritesOnly = storedUserData?.favoritesOnly || false;
+          return await showPonyListPage(interaction, userId, newPage, filter, currentSearchQuery, currentSortBy, currentFavoritesOnly);
+        }
+        
+        return;
+      }
 
       if (customId.startsWith('artifact_purchase_')) {
+        const { handleInteraction } = await import('../commands/economy/artifacts.js');
+        return await handleInteraction(interaction);
+      }
+      
+      if (customId.startsWith('artifact_back_')) {
         const { handleInteraction } = await import('../commands/economy/artifacts.js');
         return await handleInteraction(interaction);
       }
@@ -876,6 +986,12 @@ Purchase at least two collections to support the bot and unlock exclusive featur
         return;
       }
 
+      if (customId.startsWith('voice_select_')) {
+        const { handleVoiceInteraction } = await import('../commands/utility/voice.js');
+        await handleVoiceInteraction(interaction);
+        return;
+      }
+
       if (customId.startsWith('bank_')) {
         const command = interaction.client.commands.get('balance');
         if (command && command.handleButton) {
@@ -903,7 +1019,7 @@ Purchase at least two collections to support the bot and unlock exclusive featur
   }
   
   if (interaction.isStringSelectMenu()) {
-    if (process.env.NODE_ENV === 'development' && interaction.user.id !== '1372601851781972038') {
+    if (process.env.NODE_ENV === 'development' && !canUseTesting(interaction.user.id)) {
       return interaction.reply({
         content: 'I lost my toothpaste <a:shook:1425845208658219128><a:shook:1425845208658219128><a:shook:1425845208658219128>',
         ephemeral: true
@@ -1169,7 +1285,7 @@ Purchase at least two collections to support the bot and unlock exclusive featur
   }
   
   if (interaction.isModalSubmit()) {
-    if (process.env.NODE_ENV === 'development' && interaction.user.id !== '1372601851781972038') {
+    if (process.env.NODE_ENV === 'development' && !canUseTesting(interaction.user.id)) {
       return interaction.reply({
         content: 'I lost my toothpaste <a:shook:1425845208658219128><a:shook:1425845208658219128><a:shook:1425845208658219128>',
         ephemeral: true

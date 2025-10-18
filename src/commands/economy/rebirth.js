@@ -1,4 +1,15 @@
-import { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { 
+  SlashCommandBuilder, 
+  EmbedBuilder, 
+  ActionRowBuilder, 
+  ButtonBuilder, 
+  ButtonStyle,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags
+} from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { requirePony } from '../../utils/pony/ponyMiddleware.js';
 import { query, getRow } from '../../utils/database.js';
@@ -422,10 +433,6 @@ const performRebirth = async (userId, targetLevel) => {
       await query(`DELETE FROM friendship WHERE id IN (${placeholders})`, poniesIdsToDelete);
     }
     
-
-    await query('DELETE FROM user_farms WHERE user_id = ?', [userId]);
-    
-
     await query(`
       UPDATE resources SET 
         wood = 0, stone = 0, tools = 0, celestial_fabric = 0, sun_crystal = 0,
@@ -478,24 +485,33 @@ const performRebirth = async (userId, targetLevel) => {
 };
 
 
-const createRebirthEmbed = async (userId) => {
+const createRebirthContainer = async (userId) => {
   const rebirth = await getUserRebirth(userId);
   const currentLevel = rebirth.rebirth_level;
   const nextLevel = currentLevel + 1;
   
-  const embed = new EmbedBuilder()
-    .setTitle('<:rebirth:1426523946064281611> Pony Rebirth')
-    .setColor(0x9B59B6);
+  const container = new ContainerBuilder();
 
-  let desc = '';
+  const titleText = new TextDisplayBuilder()
+    .setContent('<:rebirth:1426523946064281611> **Pony Rebirth System**');
+  container.addTextDisplayComponents(titleText);
+
   if (currentLevel === 0) {
-    desc += '> Rebirth allows you to sacrifice progress for permanent bonuses.\n';
+    const introText = new TextDisplayBuilder()
+      .setContent('Rebirth allows you to sacrifice progress for permanent bonuses.');
+    container.addTextDisplayComponents(introText);
   } else {
     const currentBonuses = REBIRTH_BONUSES[currentLevel];
     const currentSlotLimit = PONY_SLOT_LIMITS[currentLevel];
-    desc += `> **Current Rebirth Level:** <:rebirth:1426523946064281611> ${currentLevel}\n> **Current Bonuses:** ${currentBonuses.description}\n> **Pony Slots:** ${currentSlotLimit} maximum capacity\n`;
+    
+    const currentStatusText = new TextDisplayBuilder()
+      .setContent(`**Current Rebirth Level:** <:rebirth:1426523946064281611> ${currentLevel}\n**Current Bonuses:** ${currentBonuses.description}\n**Pony Slots:** ${currentSlotLimit} maximum capacity`);
+    container.addTextDisplayComponents(currentStatusText);
   }
 
+  const separator1 = new SeparatorBuilder();
+  container.addSeparatorComponents(separator1);
+  
   if (nextLevel <= 15) {
     const requirements = REBIRTH_REQUIREMENTS[nextLevel];
     const nextBonuses = REBIRTH_BONUSES[nextLevel];
@@ -508,34 +524,46 @@ const createRebirthEmbed = async (userId) => {
     const removablePonies = userFriends.filter(p => removableRarities.includes(p.rarity));
     const protectedPonies = userFriends.filter(p => !removableRarities.includes(p.rarity));
 
-    desc += '\n```ansi\n'
-      + `Total ponies:        ${ponyCount}/${requirements.ponies}\n`
-      + `Harmony:             ${userHarmony}/${requirements.harmony}\n`;
+    let requirementsText = `**Requirements for Level ${nextLevel}:**\n`;
+    requirementsText += `Total ponies: ${ponyCount}/${requirements.ponies}\n`;
+    requirementsText += `Harmony: ${userHarmony}/${requirements.harmony}`;
     
-
     if (requirements.bits) {
-      desc += `Bits:                ${userBits}/${requirements.bits}\n`;
+      requirementsText += `\nBits: ${userBits.toLocaleString()}/${requirements.bits.toLocaleString()}`;
     }
     
-    desc += '```\n';
-    desc += '> **Removal priority:** BASIC → RARE → EPIC → MYTHIC → LEGEND\n';
-    desc += '> **Protected ponies:** CUSTOM, SECRET, UNIQUE, EXCLUSIVE\n';
-    desc += '\n> __What will be lost:__\n';
-    desc += `> - Up to ${requirements.poniesLost} ponies\n`;
-    desc += '> - All farm progress\n';
-    desc += '> - All resources except diamonds, keys & cases\n';
-    desc += '> - All bits (cash & bank)\n';
-    desc += '\n> __Next Level Bonuses:__\n';
-    desc += `> ${nextBonuses.description}\n`;
+    const requirementsDisplay = new TextDisplayBuilder()
+      .setContent(requirementsText);
+    container.addTextDisplayComponents(requirementsDisplay);
+    
+    const rulesText = new TextDisplayBuilder()
+      .setContent('**Removal Priority:** BASIC → RARE → EPIC → MYTHIC → LEGEND\n**Protected Ponies:** CUSTOM, SECRET, UNIQUE, EXCLUSIVE');
+    container.addTextDisplayComponents(rulesText);
+    
+    const separator2 = new SeparatorBuilder();
+    container.addSeparatorComponents(separator2);
+
+    const lossText = new TextDisplayBuilder()
+      .setContent(`**⚠️ What will be lost:**\n• Up to ${requirements.poniesLost} ponies\n• All resources except diamonds, keys & cases\n• All bits (cash & bank)`);
+    container.addTextDisplayComponents(lossText);
+ 
     const nextSlotLimit = PONY_SLOT_LIMITS[nextLevel];
-    desc += `> **New Pony Slots:** ${nextSlotLimit} maximum capacity (+${nextSlotLimit - PONY_SLOT_LIMITS[currentLevel]} slots)\n`;
-    desc += '\n> **Rebirth is permanent and cannot be undone!**';
+    const slotIncrease = nextSlotLimit - PONY_SLOT_LIMITS[currentLevel];
+    
+    const bonusText = new TextDisplayBuilder()
+      .setContent(`**✨ Next Level Bonuses:**\n${nextBonuses.description}\n**New Pony Slots:** ${nextSlotLimit} maximum capacity (+${slotIncrease} slots)`);
+    container.addTextDisplayComponents(bonusText);
+    
+    const warningText = new TextDisplayBuilder()
+      .setContent('**⚠️ Rebirth is permanent and cannot be undone!**');
+    container.addTextDisplayComponents(warningText);
   } else {
-    desc += '> **Maximum rebirth level reached!**';
+    const maxLevelText = new TextDisplayBuilder()
+      .setContent('**Maximum rebirth level reached!**\nYou have achieved the highest level of rebirth possible.');
+    container.addTextDisplayComponents(maxLevelText);
   }
 
-  embed.setDescription(desc);
-  return embed;
+  return container;
 };
 
 
@@ -544,14 +572,124 @@ const createRebirthComponents = (userId, canPerformRebirth) => {
   row.addComponents(
     new ButtonBuilder()
       .setCustomId(`rebirth_perform_${userId}`)
-      .setLabel('Rebirth')
-      .setStyle(ButtonStyle.Danger),
+      .setLabel('Perform Rebirth')
+      .setStyle(ButtonStyle.Danger)
+      .setDisabled(!canPerformRebirth),
     new ButtonBuilder()
       .setCustomId(`rebirth_info_${userId}`)
-      .setLabel('Info')
+      .setLabel('System Info')
       .setStyle(ButtonStyle.Secondary)
   );
   return [row];
+};
+
+const createLoadingContainer = () => {
+  const container = new ContainerBuilder();
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent('<:rebirth:1426523946064281611> **Rebirth in Progress**');
+  container.addTextDisplayComponents(titleText);
+  
+  const loadingText = new TextDisplayBuilder()
+    .setContent('⏳ Processing rebirth...\nThis may take a few moments.');
+  container.addTextDisplayComponents(loadingText);
+  
+  return container;
+};
+
+const createSuccessContainer = (nextLevel, result, remainingHarmony) => {
+  const container = new ContainerBuilder();
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent(`<:rebirth:1426523946064281611> **Rebirth Complete - Level ${nextLevel}**`);
+  container.addTextDisplayComponents(titleText);
+  
+  const totalRemoved = Object.values(result.removedByRarity).reduce((sum, count) => sum + count, 0);
+  
+  let statsText = `**Rebirth Statistics:**\n`;
+  statsText += `Ponies sacrificed: ${totalRemoved}\n`;
+  statsText += `Protected ponies: ${result.protectedPonies}\n`;
+  statsText += `Harmony spent: ${REBIRTH_REQUIREMENTS[nextLevel].harmony}`;
+  
+  if (REBIRTH_REQUIREMENTS[nextLevel].bits) {
+    statsText += `\nBits spent: ${REBIRTH_REQUIREMENTS[nextLevel].bits.toLocaleString()}`;
+  }
+  
+  statsText += `\nHarmony remaining: ${remainingHarmony}`;
+  
+  const statsDisplay = new TextDisplayBuilder()
+    .setContent(statsText);
+  container.addTextDisplayComponents(statsDisplay);
+  
+  const separator = new SeparatorBuilder();
+  container.addSeparatorComponents(separator);
+  
+  const bonusText = new TextDisplayBuilder()
+    .setContent(`**New Bonuses Active:**\n${REBIRTH_BONUSES[nextLevel].description}`);
+  container.addTextDisplayComponents(bonusText);
+  
+  return container;
+};
+
+const createErrorContainer = (error) => {
+  const container = new ContainerBuilder();
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent('<:rebirth:1426523946064281611> **Rebirth Failed**');
+  container.addTextDisplayComponents(titleText);
+  
+  const errorText = new TextDisplayBuilder()
+    .setContent(`❌ **Error occurred during rebirth**\n${error}`);
+  container.addTextDisplayComponents(errorText);
+  
+  return container;
+};
+
+const createInfoContainer = () => {
+  const container = new ContainerBuilder();
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent('<:rebirth:1426523946064281611> **Rebirth System Information**');
+  container.addTextDisplayComponents(titleText);
+  
+  const descText = new TextDisplayBuilder()
+    .setContent('The rebirth system allows you to sacrifice progress for permanent bonuses.');
+  container.addTextDisplayComponents(descText);
+  
+  const separator1 = new SeparatorBuilder();
+  container.addSeparatorComponents(separator1);
+  
+  const priorityText = new TextDisplayBuilder()
+    .setContent('**Sacrifice Priority:**\nBASIC → RARE → EPIC → MYTHIC → LEGEND');
+  container.addTextDisplayComponents(priorityText);
+  
+  const protectedText = new TextDisplayBuilder()
+    .setContent('**Protected Rarities:**\nCUSTOM, SECRET, UNIQUE, EXCLUSIVE');
+  container.addTextDisplayComponents(protectedText);
+  
+  const separator2 = new SeparatorBuilder();
+  container.addSeparatorComponents(separator2);
+  
+  const loseText = new TextDisplayBuilder()
+    .setContent('**What You Lose:**\n• Required number of removable ponies\n• All resources except protected ones\n• Harmony points (only the required cost)');
+  container.addTextDisplayComponents(loseText);
+  
+  const keepText = new TextDisplayBuilder()
+    .setContent('**What You Keep:**\n• Protected ponies\n• Farm progress and upgrades\n• Diamonds, keys, cases\n• Profile customizations\n• Clan membership');
+  container.addTextDisplayComponents(keepText);
+  
+  const gainText = new TextDisplayBuilder()
+    .setContent('**What You Gain:**\n• Permanent venture bonuses\n• Increased resource generation\n• Reduced costs and cooldowns\n• Access to advanced features');
+  container.addTextDisplayComponents(gainText);
+  
+  const separator3 = new SeparatorBuilder();
+  container.addSeparatorComponents(separator3);
+  
+  const warningText = new TextDisplayBuilder()
+    .setContent('**⚠️ Rebirth is permanent and cannot be undone!**');
+  container.addTextDisplayComponents(warningText);
+  
+  return container;
 };
 
 export const data = new SlashCommandBuilder()
@@ -563,7 +701,6 @@ export const data = new SlashCommandBuilder()
   .setDMPermission(false);
 
 export async function execute(interaction) {
-
   const ponyCheck = await requirePony(interaction);
   if (ponyCheck !== true) {
     return;
@@ -571,24 +708,27 @@ export async function execute(interaction) {
   
   try {
     const userId = interaction.user.id;
-    
 
     const rebirth = await getUserRebirth(userId);
     const nextLevel = rebirth.rebirth_level + 1;
-    
-
+  
     let canPerformRebirth = false;
     if (nextLevel <= 15) {
       const rebirthCheck = await canRebirth(userId, nextLevel);
       canPerformRebirth = rebirthCheck.canRebirth;
     }
     
-    const embed = await createRebirthEmbed(userId);
+    const container = await createRebirthContainer(userId);
+  
     const components = createRebirthComponents(userId, canPerformRebirth);
+
+    components.forEach(row => {
+      container.addActionRowComponents(row);
+    });
     
     await interaction.reply({
-      embeds: [embed],
-      components: components
+      components: [container],
+      flags: MessageFlags.IsComponentsV2
     });
     
   } catch (error) {
@@ -635,99 +775,39 @@ export const handleRebirthButtons = async (interaction) => {
       }
       
       await interaction.deferUpdate();
-      
 
-      const loadingEmbed = new EmbedBuilder()
-        .setTitle('<:rebirth:1426523946064281611> Rebirth in Progress')
-        .setDescription('> Processing rebirth...\n> This may take a few moments.')
-        .setColor(0xFFAA00);
+      const loadingContainer = createLoadingContainer();
       
       await interaction.editReply({
-        embeds: [loadingEmbed],
-        components: []
+        components: [loadingContainer],
+        flags: MessageFlags.IsComponentsV2
       });
       
       const result = await performRebirth(userId, nextLevel);
       
       if (result.success) {
-
-        const totalRemoved = Object.values(result.removedByRarity).reduce((sum, count) => sum + count, 0);
-        
-
         const remainingHarmony = await getHarmony(userId);
-        
-        const successEmbed = new EmbedBuilder()
-          .setTitle('<:rebirth:1426523946064281611> Rebirth Complete')
-          .setColor(0x00FF00);
-        
-        let desc = `> **Rebirth Level <:rebirth:1426523946064281611> ${nextLevel} Achieved**\n\n`;
-        desc += '```ansi\n';
-        desc += `Ponies sacrificed:    ${totalRemoved}\n`;
-        desc += `Protected ponies:     ${result.protectedPonies}\n`;
-        desc += `Harmony spent:        ${REBIRTH_REQUIREMENTS[nextLevel].harmony}\n`;
-        if (REBIRTH_REQUIREMENTS[nextLevel].bits) {
-          desc += `Bits spent:           ${REBIRTH_REQUIREMENTS[nextLevel].bits}\n`;
-        }
-        desc += `Harmony remaining:    ${remainingHarmony}\n`;
-        desc += '```\n';
-        desc += `> **New Bonuses Active:**\n> ${REBIRTH_BONUSES[nextLevel].description}`;
-        
-        successEmbed.setDescription(desc);
+        const successContainer = createSuccessContainer(nextLevel, result, remainingHarmony);
         
         await interaction.editReply({
-          embeds: [successEmbed],
-          components: []
+          components: [successContainer],
+          flags: MessageFlags.IsComponentsV2
         });
       } else {
-        const errorEmbed = new EmbedBuilder()
-          .setTitle('<:rebirth:1426523946064281611> Rebirth Failed')
-          .setDescription(`> **Error occurred during rebirth**\n> ${result.error}`)
-          .setColor(0xFF0000);
+        const errorContainer = createErrorContainer(result.error);
         
         await interaction.editReply({
-          embeds: [errorEmbed],
-          components: []
+          components: [errorContainer],
+          flags: MessageFlags.IsComponentsV2
         });
       }
       
     } else if (action === 'info') {
-      const infoEmbed = new EmbedBuilder()
-        .setTitle('<:rebirth:1426523946064281611> Rebirth System Information')
-        .setColor(0x9B59B6);
-      
-      let desc = '> The rebirth system allows you to sacrifice progress for permanent bonuses.\n\n';
-      
-      desc += '**Sacrifice Priority:**\n';
-      desc += '```\n';
-      desc += 'BASIC → RARE → EPIC → MYTHIC → LEGEND\n';
-      desc += '```\n';
-      
-      desc += '> **Protected Rarities:**\n';
-      desc += '> CUSTOM, SECRET, UNIQUE, EXCLUSIVE\n\n';
-      
-      desc += '> **What You Lose:**\n';
-      desc += '> - Required number of removable ponies\n';
-      desc += '> - All farm progress and most resources\n';
-      desc += '> - Harmony points (only the required cost)\n\n';
-      
-      desc += '> **What You Keep:**\n';
-      desc += '> - Protected ponies\n';
-      desc += '> - Diamonds, keys, cases\n';
-      desc += '> - Profile customizations\n';
-      desc += '> - Clan membership\n\n';
-      
-      desc += '> **What You Gain:**\n';
-      desc += '> - Permanent venture bonuses\n';
-      desc += '> - Increased resource generation\n';
-      desc += '> - Reduced costs and cooldowns\n';
-      desc += '> - Access to advanced features\n\n';
-      
-      desc += '> **⚠️ Rebirth is permanent and cannot be undone!**';
-      
-      infoEmbed.setDescription(desc);
+      const infoContainer = createInfoContainer();
       
       await interaction.reply({
-        embeds: [infoEmbed],
+        components: [infoContainer],
+        flags: MessageFlags.IsComponentsV2,
         ephemeral: true
       });
     }

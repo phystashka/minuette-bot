@@ -3,8 +3,11 @@ import {
   ActionRowBuilder, 
   ButtonBuilder, 
   ButtonStyle,
-  ComponentType,
-  EmbedBuilder
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags
 } from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { requirePony } from '../../utils/pony/ponyMiddleware.js';
@@ -17,11 +20,21 @@ import { getPonySlotLimit } from './rebirth.js';
 
 const PAGE_SIZE = 15;
 
+export const userPonyData = new Map();
 
-const userCollectors = new Map();
-
-
-const userPonyData = new Map();
+export function createAccessErrorContainer(title, description) {
+  const container = new ContainerBuilder();
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent(`**${title}**`);
+  container.addTextDisplayComponents(titleText);
+  
+  const descText = new TextDisplayBuilder()
+    .setContent(description);
+  container.addTextDisplayComponents(descText);
+  
+  return container;
+}
 
 
 const RARITY_EMOJIS = {
@@ -106,15 +119,6 @@ function getPonyTypeEmojiWithEvent(ponyType, rarity, ponyName = '') {
 }
 
 
-function stopCurrentCollector(userId) {
-  const collector = userCollectors.get(userId);
-  if (collector && !collector.ended) {
-    collector.stop('new_command');
-    userCollectors.delete(userId);
-  }
-}
-
-
 export function getPonyById(userId, ponyId) {
   const userData = userPonyData.get(userId);
   if (!userData) {
@@ -179,6 +183,194 @@ function cleanupUserData() {
 }
 
 
+function createPoniesListContainer(userData, currentPage, totalPages, totalPonies, slotLimit, searchQuery, favoritesOnly) {
+  const { allPonies, filter: rarityFilter, sortBy } = userData;
+  
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const endIndex = startIndex + PAGE_SIZE;
+  const currentPonies = allPonies.slice(startIndex, endIndex);
+  
+  const container = new ContainerBuilder();
+
+  let titleText = '**My Ponies Collection**\n';
+  
+  if (searchQuery.trim()) {
+    titleText += `**Search Results: "${searchQuery}" - ${totalPonies} ponies found**`;
+  } else if (rarityFilter === 'all') {
+    titleText += `**Total Ponies: ${totalPonies}/${slotLimit} slots used**`;
+  } else {
+    titleText += `**${rarityFilter} Ponies: ${totalPonies} found**`;
+  }
+  
+  if (favoritesOnly) {
+    titleText += `\n❤️ Showing only favorite ponies`;
+  }
+  
+  const titleDisplay = new TextDisplayBuilder()
+    .setContent(titleText);
+  
+  container.addTextDisplayComponents(titleDisplay);
+  
+  if (totalPages > 1) {
+    const pageDisplay = new TextDisplayBuilder()
+      .setContent(`-# Page ${currentPage} of ${totalPages}`);
+    container.addTextDisplayComponents(pageDisplay);
+  }
+  
+  const separator = new SeparatorBuilder();
+  container.addSeparatorComponents(separator);
+  
+  if (totalPonies === 0) {
+    let emptyMessage = '';
+    if (searchQuery.trim()) {
+      emptyMessage = `❌ No ponies found matching "${searchQuery}".`;
+    } else {
+      emptyMessage = rarityFilter === 'all' 
+        ? '❌ You don\'t have any ponies yet! Use `/venture` to get your first pony.'
+        : `❌ You don't have any ${rarityFilter} rarity ponies.`;
+    }
+    
+    const emptyDisplay = new TextDisplayBuilder()
+      .setContent(emptyMessage);
+    container.addTextDisplayComponents(emptyDisplay);
+  } else {
+    const poniesText = currentPonies.map(pony => {
+      const rarityEmoji = RARITY_EMOJIS[pony.rarity] || '';
+      const heartIcon = pony.is_favorite === 1 ? '❤️ ' : '';
+      const pinIcon = pony.is_profile_pony === 1 ? '📌 ' : '';
+      const uniqueId = pony.uniqueId;
+      const friendshipLevel = pony.friendship_level || 1;
+      
+      const cutieMark = getCutieMarkFromPonyObject(pony);
+      const cutieMarkDisplay = cutieMark ? `${cutieMark} ` : '';
+      
+      return `\`${uniqueId}\` ${pinIcon}${heartIcon}${rarityEmoji} ${cutieMarkDisplay}**${pony.name}** • Friend LvL ${friendshipLevel}`;
+    }).join('\n');
+    
+    const poniesDisplay = new TextDisplayBuilder()
+      .setContent(poniesText);
+    container.addTextDisplayComponents(poniesDisplay);
+  }
+  
+  const footerSeparator = new SeparatorBuilder();
+  container.addSeparatorComponents(footerSeparator);
+  
+  const footerText = `-# Use unique ID for interactions`;
+  
+  const footerDisplay = new TextDisplayBuilder()
+    .setContent(footerText);
+  container.addTextDisplayComponents(footerDisplay);
+  
+  return container;
+}
+
+async function createPoniesActionRows(currentPage, totalPages, rarityFilter, sortBy, favoritesOnly, userId) {
+  const components = [];
+  
+  if (totalPages > 1) {
+    const navigationRow = new ActionRowBuilder();
+    
+    navigationRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`myponies_first_${rarityFilter}`)
+        .setEmoji('<:first:1422551816251510915>')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(currentPage === 1),
+      new ButtonBuilder()
+        .setCustomId(`myponies_prev_${currentPage - 1}_${rarityFilter}`)
+        .setEmoji('<:previous:1422550660401860738>')
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(currentPage === 1),
+      new ButtonBuilder()
+        .setCustomId(`myponies_next_${currentPage + 1}_${rarityFilter}`)
+        .setEmoji('<:next:1422550658846031953>')
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(currentPage === totalPages),
+      new ButtonBuilder()
+        .setCustomId(`myponies_last_${totalPages}_${rarityFilter}`)
+        .setEmoji('<:last:1422551817908391937>')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(currentPage === totalPages)
+    );
+    
+    components.push(navigationRow);
+  }
+  
+  const filterRow1 = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId(`myponies_filter_all`)
+        .setLabel('All')
+        .setStyle(rarityFilter === 'all' ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`myponies_filter_BASIC`)
+        .setLabel('Basic')
+        .setStyle(rarityFilter === 'BASIC' ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`myponies_filter_RARE`)
+        .setLabel('Rare')
+        .setStyle(rarityFilter === 'RARE' ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`myponies_filter_EPIC`)
+        .setLabel('Epic')
+        .setStyle(rarityFilter === 'EPIC' ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`myponies_filter_MYTHIC`)
+        .setLabel('Mythic')
+        .setStyle(rarityFilter === 'MYTHIC' ? ButtonStyle.Success : ButtonStyle.Secondary)
+    );
+  
+  const filterRow2 = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId(`myponies_filter_LEGEND`)
+        .setLabel('Legend')
+        .setStyle(rarityFilter === 'LEGEND' ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`myponies_filter_CUSTOM`)
+        .setLabel('Custom')
+        .setStyle(rarityFilter === 'CUSTOM' ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`myponies_filter_SECRET`)
+        .setLabel('Secret')
+        .setStyle(rarityFilter === 'SECRET' ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`myponies_filter_EVENT`)
+        .setLabel('Event')
+        .setStyle(rarityFilter === 'EVENT' ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`myponies_filter_UNIQUE`)
+        .setLabel('Unique')
+        .setStyle(rarityFilter === 'UNIQUE' ? ButtonStyle.Success : ButtonStyle.Secondary)
+    );
+  
+  const userIsDonator = await isDonator(userId);
+  const allUserFriends = await getUserFriends(userId, false);
+  const hasFavorites = allUserFriends.some(pony => pony.is_favorite === 1);
+
+  const sortRow = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId(`myponies_sort_id`)
+        .setLabel('Sort by ID')
+        .setStyle(sortBy === 'id' ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`myponies_sort_level`)
+        .setLabel('Sort by Level')
+        .setStyle(sortBy === 'level' ? ButtonStyle.Success : ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`myponies_favorites_${favoritesOnly ? 'off' : 'on'}`)
+        .setLabel(favoritesOnly ? 'Show All' : 'Favorites Only')
+        .setStyle(favoritesOnly ? ButtonStyle.Danger : ButtonStyle.Secondary)
+        .setDisabled(!userIsDonator || !hasFavorites)
+    );
+
+  components.push(filterRow1, filterRow2, sortRow);
+  
+  return components;
+}
+
+
 setInterval(cleanupUserData, 30 * 60 * 1000);
 
 export const data = new SlashCommandBuilder()
@@ -236,7 +428,6 @@ export const data = new SlashCommandBuilder()
 export async function execute(interaction) {
   try {
     const userId = interaction.user.id;
-    stopCurrentCollector(userId);
     
     const filter = interaction.options.getString('filter') || 'all';
     const searchQuery = interaction.options.getString('search') || '';
@@ -247,13 +438,14 @@ export async function execute(interaction) {
     if (favoritesOnly) {
       const userIsDonator = await isDonator(userId);
       if (!userIsDonator) {
+        const container = createAccessErrorContainer(
+          'Donators Only',
+          'The favorites filter is only available for donators!\n\nTo become a donator, use `/donate` and purchase at least two collections.'
+        );
+        
         return interaction.reply({
-          embeds: [createEmbed({
-            title: 'Donators Only! 🎁',
-            description: 'The favorites filter is only available for donators!\n\nTo become a donator, use `/donate` and purchase at least two collections.',
-            color: 0x03168f
-          })],
-          ephemeral: true
+          components: [container],
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
         });
       }
     }
@@ -261,15 +453,14 @@ export async function execute(interaction) {
 
     const userPony = await getPony(userId);
     if (!userPony) {
+      const container = createAccessErrorContainer(
+        'No Pony Found',
+        'You need to have a pony first! Use `/adopt` to get your first pony.'
+      );
+      
       return interaction.reply({
-        embeds: [
-          createEmbed({
-            title: '❌ No Pony Found',
-            description: 'You need to have a pony first! Use `/adopt` to get your first pony.',
-            color: 0xFF0000
-          })
-        ],
-        ephemeral: true
+        components: [container],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
     }
     
@@ -292,21 +483,16 @@ export async function execute(interaction) {
 }
 
 
-async function showPonyListPage(interaction, userId, page, rarityFilter, searchQuery = '', sortBy = 'id', favoritesOnly = false) {
+export async function showPonyListPage(interaction, userId, page, rarityFilter, searchQuery = '', sortBy = 'id', favoritesOnly = false) {
   try {
-
     let friends = await getUserFriends(userId, favoritesOnly);
-    
 
     if (rarityFilter !== 'all') {
       friends = friends.filter(friend => friend.rarity === rarityFilter);
     }
-    
 
     const allPonies = [];
     friends.forEach(friend => {
-
-
       allPonies.push({
         ...friend,
         uniqueId: friend.id,
@@ -316,31 +502,22 @@ async function showPonyListPage(interaction, userId, page, rarityFilter, searchQ
       });
     });
     
-
     let filteredPonies = allPonies;
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase();
       
-
       if (/^\d+$/.test(query)) {
         const searchId = parseInt(query);
         filteredPonies = allPonies.filter(pony => pony.uniqueId === searchId);
       } else {
-
         filteredPonies = allPonies.filter(pony => 
           pony.name.toLowerCase().includes(query)
         );
       }
     }
     
-
-
-    
-
     if (sortBy === 'level') {
-
       filteredPonies.sort((a, b) => {
-
         const profileA = a.is_profile_pony || 0;
         const profileB = b.is_profile_pony || 0;
         if (profileB !== profileA) {
@@ -349,16 +526,13 @@ async function showPonyListPage(interaction, userId, page, rarityFilter, searchQ
         
         const levelA = a.friendship_level || 1;
         const levelB = b.friendship_level || 1;
-        console.log(`[SORT DEBUG] Comparing ${a.name} (lvl ${levelA}) vs ${b.name} (lvl ${levelB})`);
         if (levelB !== levelA) {
           return levelB - levelA;
         }
         return a.uniqueId - b.uniqueId;
       });
     } else {
-
       filteredPonies.sort((a, b) => {
-
         const profileA = a.is_profile_pony || 0;
         const profileB = b.is_profile_pony || 0;
         if (profileB !== profileA) {
@@ -369,7 +543,6 @@ async function showPonyListPage(interaction, userId, page, rarityFilter, searchQ
       });
     }
     
-
     userPonyData.set(userId, {
       allPonies: filteredPonies,
       filter: rarityFilter,
@@ -383,220 +556,34 @@ async function showPonyListPage(interaction, userId, page, rarityFilter, searchQ
     const totalPages = Math.ceil(totalPonies / PAGE_SIZE) || 1;
     const currentPage = Math.min(Math.max(1, page), totalPages);
     
-
-    const startIndex = (currentPage - 1) * PAGE_SIZE;
-    const endIndex = startIndex + PAGE_SIZE;
-    const currentPonies = filteredPonies.slice(startIndex, endIndex);
-    
-
-    let description = '';
-    if (totalPonies === 0) {
-      if (searchQuery.trim()) {
-        description = `No ponies found matching "${searchQuery}".`;
-      } else {
-        description = rarityFilter === 'all' 
-          ? 'You don\'t have any ponies yet! Use `/venture` to get your first pony.'
-          : `You don't have any ${rarityFilter} rarity ponies.`;
-      }
-    } else {
-      const ponyLines = currentPonies.map((pony, index) => {
-        const rarityEmoji = RARITY_EMOJIS[pony.rarity] || '';
-        const heartIcon = pony.is_favorite === 1 ? '❤️ ' : '';
-        const pinIcon = pony.is_profile_pony === 1 ? '📌 ' : '';
-        const uniqueId = pony.uniqueId;
-        const friendshipLevel = pony.friendship_level || 1;
-        
-
-        if (pony.is_profile_pony === 1) {
-          console.log(`[DEBUG] Profile pony found: ${pony.name} (ID: ${uniqueId}, is_profile_pony: ${pony.is_profile_pony}, is_favorite: ${pony.is_favorite})`);
-        }
-        
-
-        const cutieMark = getCutieMarkFromPonyObject(pony);
-        const cutieMarkDisplay = cutieMark ? `${cutieMark} ` : '';
-        
-        return `\`${uniqueId}\` ${pinIcon}${heartIcon}${rarityEmoji} ${cutieMarkDisplay}**${pony.name}**　•　Friend LvL ${friendshipLevel}`;
-      });
-      description = ponyLines.join('\n');
-    }
-    
-
-    const embedColor = rarityFilter !== 'all' ? RARITY_COLORS[rarityFilter] || 0x7289DA : 0x7289DA;
-    
-
     const slotLimit = await getPonySlotLimit(userId);
     
+    const container = createPoniesListContainer(
+      { allPonies: filteredPonies, filter: rarityFilter, sortBy }, 
+      currentPage, 
+      totalPages, 
+      totalPonies, 
+      slotLimit, 
+      searchQuery, 
+      favoritesOnly
+    );
 
-    let title = '';
-    if (searchQuery.trim()) {
-      title = `Search Results: "${searchQuery}" - ${totalPonies} ponies found`;
-    } else if (rarityFilter === 'all') {
-      title = `My Ponies - ${totalPonies}/${slotLimit} slots used`;
-    } else {
-      title = `My ${rarityFilter} Ponies - ${totalPonies} ponies (${totalPonies}/${slotLimit} total)`;
-    }
-    
+    const components = await createPoniesActionRows(currentPage, totalPages, rarityFilter, sortBy, favoritesOnly, userId);
 
-    const embed = createEmbed({
-      title: title,
-      description: description,
-      color: embedColor,
-      user: interaction.user
+    components.forEach(row => {
+      container.addActionRowComponents(row);
     });
     
-
-    let footerText = `Total: ${totalPonies} ponies • Use unique ID for interactions`;
-    if (favoritesOnly) {
-      footerText = `Favorites: ${totalPonies} ponies • Use unique ID for interactions`;
-    }
-    if (totalPages > 1) {
-      footerText = `Page ${currentPage}/${totalPages} • ${footerText}`;
-    }
-    if (searchQuery.trim()) {
-      footerText = `Search: "${searchQuery}" • ${footerText}`;
-    }
-    
-    embed.setFooter({ text: footerText });
-    
-
-    const components = [];
-    
-    if (totalPages > 1) {
-      const navigationRow = new ActionRowBuilder();
-      
-
-      navigationRow.addComponents(
-        new ButtonBuilder()
-          .setCustomId(`myponies_first_${rarityFilter}`)
-          .setLabel('First')
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(currentPage === 1)
-      );
-      
-
-      navigationRow.addComponents(
-        new ButtonBuilder()
-          .setCustomId(`myponies_prev_${currentPage - 1}_${rarityFilter}`)
-          .setLabel('Previous')
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(currentPage === 1)
-      );
-      
-
-      navigationRow.addComponents(
-        new ButtonBuilder()
-          .setCustomId(`myponies_next_${currentPage + 1}_${rarityFilter}`)
-          .setLabel('Next')
-          .setStyle(ButtonStyle.Primary)
-          .setDisabled(currentPage === totalPages)
-      );
-      
-
-      navigationRow.addComponents(
-        new ButtonBuilder()
-          .setCustomId(`myponies_last_${totalPages}_${rarityFilter}`)
-          .setLabel('Last')
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(currentPage === totalPages)
-      );
-      
-      components.push(navigationRow);
-    }
-    
-
-    const filterRow = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`myponies_filter_all`)
-          .setLabel('All')
-          .setStyle(rarityFilter === 'all' ? ButtonStyle.Success : ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId(`myponies_filter_BASIC`)
-          .setLabel('Basic')
-          .setStyle(rarityFilter === 'BASIC' ? ButtonStyle.Success : ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId(`myponies_filter_RARE`)
-          .setLabel('Rare')
-          .setStyle(rarityFilter === 'RARE' ? ButtonStyle.Success : ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId(`myponies_filter_EPIC`)
-          .setLabel('Epic')
-          .setStyle(rarityFilter === 'EPIC' ? ButtonStyle.Success : ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId(`myponies_filter_MYTHIC`)
-          .setLabel('Mythic')
-          .setStyle(rarityFilter === 'MYTHIC' ? ButtonStyle.Success : ButtonStyle.Secondary)
-      );
-    
-    const filterRow2 = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`myponies_filter_LEGEND`)
-          .setLabel('Legend')
-          .setStyle(rarityFilter === 'LEGEND' ? ButtonStyle.Success : ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId(`myponies_filter_CUSTOM`)
-          .setLabel('Custom')
-          .setStyle(rarityFilter === 'CUSTOM' ? ButtonStyle.Success : ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId(`myponies_filter_SECRET`)
-          .setLabel('Secret')
-          .setStyle(rarityFilter === 'SECRET' ? ButtonStyle.Success : ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId(`myponies_filter_EVENT`)
-          .setLabel('Event')
-          .setStyle(rarityFilter === 'EVENT' ? ButtonStyle.Success : ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId(`myponies_filter_UNIQUE`)
-          .setLabel('Unique')
-          .setStyle(rarityFilter === 'UNIQUE' ? ButtonStyle.Success : ButtonStyle.Secondary)
-      );
-    
-
-    const userIsDonator = await isDonator(userId);
-    
-
-    const allUserFriends = await getUserFriends(userId, false);
-    const hasFavorites = allUserFriends.some(pony => pony.is_favorite === 1);
-    
-
-    const sortRow = new ActionRowBuilder()
-      .addComponents(
-        new ButtonBuilder()
-          .setCustomId(`myponies_sort_id`)
-          .setLabel('Sort by ID')
-          .setStyle(sortBy === 'id' ? ButtonStyle.Success : ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId(`myponies_sort_level`)
-          .setLabel('Sort by Level')
-          .setStyle(sortBy === 'level' ? ButtonStyle.Success : ButtonStyle.Secondary),
-        new ButtonBuilder()
-          .setCustomId(`myponies_favorites_${favoritesOnly ? 'off' : 'on'}`)
-          .setLabel(favoritesOnly ? 'Show All' : 'Favorites Only')
-          .setStyle(favoritesOnly ? ButtonStyle.Danger : ButtonStyle.Secondary)
-          .setEmoji('❤️')
-          .setDisabled(!userIsDonator || !hasFavorites)
-      );
-
-    components.push(filterRow, filterRow2, sortRow);
-    
-
     if (interaction.deferred || interaction.replied) {
-      const message = await interaction.editReply({
-        embeds: [embed],
-        components: components
+      await interaction.editReply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2
       });
-      
-
-      createButtonCollector(message, userId, currentPage, rarityFilter);
     } else {
-      const message = await interaction.reply({
-        embeds: [embed],
-        components: components
+      await interaction.reply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2
       });
-      
-
-      createButtonCollector(message, userId, currentPage, rarityFilter);
     }
     
   } catch (error) {
@@ -618,139 +605,6 @@ async function showPonyListPage(interaction, userId, page, rarityFilter, searchQ
       await interaction.reply(errorMessage);
     }
   }
-}
-
-
-function createButtonCollector(message, userId, currentPage, rarityFilter) {
-
-
-  
-  const collector = message.createMessageComponentCollector({
-    componentType: ComponentType.Button,
-    time: 600000
-  });
-  
-
-  const oldCollector = userCollectors.get(userId);
-  if (oldCollector && !oldCollector.ended) {
-    oldCollector.stop('replaced');
-  }
-  
-  userCollectors.set(userId, collector);
-  
-  collector.on('collect', async (buttonInteraction) => {
-
-    if (buttonInteraction.user.id !== userId) {
-      return buttonInteraction.reply({
-        content: 'This is not your ponies list!',
-        ephemeral: true
-      });
-    }
-    
-    await buttonInteraction.deferUpdate();
-    
-    const customId = buttonInteraction.customId;
-    
-
-    const userData = userPonyData.get(userId);
-    const currentSearchQuery = userData?.searchQuery || '';
-    
-    if (customId.startsWith('myponies_filter_')) {
-      const newFilter = customId.replace('myponies_filter_', '');
-      const currentSortBy = userData?.sortBy || 'id';
-      const currentFavoritesOnly = userData?.favoritesOnly || false;
-      await showPonyListPage(buttonInteraction, userId, 1, newFilter, currentSearchQuery, currentSortBy, currentFavoritesOnly);
-    } else if (customId.startsWith('myponies_sort_')) {
-      const newSortBy = customId.replace('myponies_sort_', '');
-      const currentFilter = userData?.filter || 'all';
-      const currentFavoritesOnly = userData?.favoritesOnly || false;
-      await showPonyListPage(buttonInteraction, userId, 1, currentFilter, currentSearchQuery, newSortBy, currentFavoritesOnly);
-    } else if (customId.startsWith('myponies_favorites_')) {
-      const favAction = customId.replace('myponies_favorites_', '');
-      const newFavoritesOnly = favAction === 'on';
-      const currentFilter = userData?.filter || 'all';
-      const currentSortBy = userData?.sortBy || 'id';
-      
-
-      const userIsDonator = await isDonator(userId);
-      
-
-      const allUserFriends = await getUserFriends(userId, false);
-      const hasFavorites = allUserFriends.some(pony => pony.is_favorite === 1);
-      
-      if (!userIsDonator && newFavoritesOnly) {
-        return buttonInteraction.followUp({
-          embeds: [createEmbed({
-            title: 'Donators Only! 🎁',
-            description: 'The favorites filter is only available for donators!\n\nTo become a donator, use `/donate` and purchase at least two collections.',
-            color: 0x03168f
-          })],
-          ephemeral: true
-        });
-      }
-      
-      if (!hasFavorites && newFavoritesOnly) {
-        return buttonInteraction.followUp({
-          embeds: [createEmbed({
-            title: 'No Favorites! ❤️',
-            description: 'You don\'t have any favorite ponies yet!\n\nTo add favorites, use `/favorite` command with a pony ID.',
-            color: 0x03168f
-          })],
-          ephemeral: true
-        });
-      }
-      
-      await showPonyListPage(buttonInteraction, userId, 1, currentFilter, currentSearchQuery, currentSortBy, newFavoritesOnly);
-    } else if (customId.startsWith('myponies_')) {
-      const parts = customId.split('_');
-      const action = parts[1];
-      
-      let newPage = currentPage;
-      
-      if (action === 'first') {
-        newPage = 1;
-      } else if (action === 'last') {
-        newPage = parseInt(parts[2]);
-      } else if (action === 'prev' || action === 'next') {
-        newPage = parseInt(parts[2]);
-      }
-      
-      const filter = parts[parts.length - 1];
-      const currentSortBy = userData?.sortBy || 'id';
-      const currentFavoritesOnly = userData?.favoritesOnly || false;
-      await showPonyListPage(buttonInteraction, userId, newPage, filter, currentSearchQuery, currentSortBy, currentFavoritesOnly);
-    }
-  });
-  
-  collector.on('end', (collected, reason) => {
-
-    if (userCollectors.get(userId) === collector) {
-      userCollectors.delete(userId);
-    }
-    
-
-    if (reason === 'time') {
-      try {
-        if (message.components && message.components.length > 0) {
-          const disabledComponents = message.components.map(row => {
-            const newRow = ActionRowBuilder.from(row);
-            newRow.components.forEach(component => {
-              if (component.data && component.data.type === 2) {
-                component.setDisabled(true);
-              }
-            });
-            return newRow;
-          });
-          
-          message.edit({ 
-            components: disabledComponents 
-          }).catch(() => {});
-        }
-      } catch (error) {
-        console.error('Error disabling components:', error);
-      }
-    }
-  });
 }
 
 export const guildOnly = false;

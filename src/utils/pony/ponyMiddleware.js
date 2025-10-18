@@ -1,6 +1,31 @@
 import { getPony } from './ponyUtils.js';
 import { createEmbed } from '../components.js';
 import { t } from '../localization.js';
+import { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } from 'discord.js';
+
+export function createNoPonyContainer(title, description) {
+  const container = new ContainerBuilder();
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent(`**${title}**`);
+  container.addTextDisplayComponents(titleText);
+  
+  const separator = new SeparatorBuilder();
+  container.addSeparatorComponents(separator);
+  
+  const descText = new TextDisplayBuilder()
+    .setContent(description);
+  container.addTextDisplayComponents(descText);
+  
+  const separator2 = new SeparatorBuilder();
+  container.addSeparatorComponents(separator2);
+  
+  const guideText = new TextDisplayBuilder()
+    .setContent('**🎯 How to get started:**\nUse `/equestria` to create your own pony and begin your magical journey in Equestria!');
+  container.addTextDisplayComponents(guideText);
+  
+  return container;
+}
 
 export async function requirePony(interaction, next) {
   try {
@@ -9,15 +34,16 @@ export async function requirePony(interaction, next) {
     const pony = await getPony(userId);
     
     if (!pony) {
+      const title = await t('equestria.no_pony_title', guildId);
+      const description = await t('equestria.no_pony_description', guildId);
+      
+      const cleanTitle = title.replace('❌ ', '');
+      
+      const container = createNoPonyContainer(cleanTitle, description);
+      
       return interaction.reply({
-        embeds: [
-          createEmbed({
-            title: await t('equestria.no_pony_title', guildId),
-            description: await t('equestria.no_pony_description', guildId),
-            color: 0xED4245
-          })
-        ],
-        ephemeral: true
+        components: [container],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
     }
     

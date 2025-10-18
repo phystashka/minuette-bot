@@ -1,4 +1,12 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { 
+  SlashCommandBuilder,
+  MessageFlags,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize
+} from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { getPonyByUserId, addBits } from '../../models/PonyModel.js';
 import { addResource } from '../../models/ResourceModel.js';
@@ -487,37 +495,41 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction) {
   try {
-    await interaction.deferReply();
-    
-
     await ensureTimelyColumn();
     
     const userId = interaction.user.id;
     const guildId = interaction.guild?.id;
     
-
     const timelyCheck = await checkAndSetTimely(userId);
     
     if (!timelyCheck.canUse) {
-      const embed = createEmbed({
-        title: await t('timely.title', guildId),
-        description: `${interaction.user}, ${await t('timely.cooldown', guildId)} \`${timelyCheck.hoursLeft} ${await t('timely.hours', guildId)}\``,
-        user: interaction.user,
-        color: 0x03168f
-      });
+      const cooldownText = new TextDisplayBuilder()
+        .setContent('⏰ **Daily Fortune**\n-# Come back later for your daily rewards!');
       
-      return await interaction.editReply({ embeds: [embed] });
+      const separator = new SeparatorBuilder()
+        .setDivider(true)
+        .setSpacing(SeparatorSpacingSize.Small);
+      
+      const cooldownInfo = new TextDisplayBuilder()
+        .setContent(`${await t('timely.cooldown', guildId)} \`${timelyCheck.hoursLeft} ${await t('timely.hours', guildId)}\``);
+      
+      const cooldownContainer = new ContainerBuilder()
+        .addTextDisplayComponents(cooldownText)
+        .addSeparatorComponents(separator)
+        .addTextDisplayComponents(cooldownInfo)
+        .addSeparatorComponents(separator);
+      
+      return await interaction.reply({
+        flags: MessageFlags.IsComponentsV2,
+        components: [cooldownContainer]
+      });
     }
-    
-
     const guildLanguage = guildId ? await getGuildLanguage(guildId) : 'en';
     const fortune = getTimedFortune(guildLanguage);
     
-
     await addBits(userId, TIMELY_REWARD);
     await addHarmony(userId, 50, 'Daily timely reward');
     
-
     try {
       const { addQuestProgress } = await import('../../utils/questUtils.js');
       await addQuestProgress(userId, 'earn_bits', TIMELY_REWARD);
@@ -526,17 +538,14 @@ export async function execute(interaction) {
       console.debug('Quest progress error:', questError.message);
     }
     
-
     let candiesAmount = 50;
     let woodAmount = 75;
     let toolsAmount = 75;
     let stoneAmount = 75;
     
-
     const { getRebirthBonuses } = await import('./rebirth.js');
     const rebirthBonuses = await getRebirthBonuses(userId);
     
-
     if (rebirthBonuses.resourceBonus > 0) {
       const bonusMultiplier = 1 + (rebirthBonuses.resourceBonus / 100);
       candiesAmount = Math.floor(candiesAmount * bonusMultiplier);
@@ -545,7 +554,6 @@ export async function execute(interaction) {
       stoneAmount = Math.floor(stoneAmount * bonusMultiplier);
     }
     
-
     const { hasActivePotion } = await import('../../models/ResourceModel.js');
     const hasResourcePotion = await hasActivePotion(userId, 'resource');
     if (hasResourcePotion) {
@@ -559,22 +567,41 @@ export async function execute(interaction) {
     await addResource(userId, 'wood', woodAmount);
     await addResource(userId, 'tools', toolsAmount);
     await addResource(userId, 'stone', stoneAmount);
-    
 
+    const fortuneText = new TextDisplayBuilder()
+      .setContent('**Daily Fortune**\n-# Your destiny awaits!');
+    
+    const separator = new SeparatorBuilder()
+      .setDivider(true)
+      .setSpacing(SeparatorSpacingSize.Small);
+    
+    const fortuneMessage = new TextDisplayBuilder()
+      .setContent(`**🌟 Today's Fortune:**\n${fortune}`);
+    
     const rewardText = hasResourcePotion 
       ? `**🎁 Daily Rewards:**\n<:bits:1411354539935666197> **${TIMELY_REWARD}** bits\n<:harmony:1416514347789844541> **50** harmony\n🍬 **${candiesAmount}** candies\n<:wooden:1426514988134301787> **${woodAmount}** wood\n<:tool:1426514983159599135> **${toolsAmount}** tools\n<:stones:1426514985865056326> **${stoneAmount}** stone\n\n⚗️ **+45% bonus from Resource Potion!**`
       : `**🎁 Daily Rewards:**\n<:bits:1411354539935666197> **${TIMELY_REWARD}** bits\n<:harmony:1416514347789844541> **50** harmony\n🍬 **${candiesAmount}** candies\n<:wooden:1426514988134301787> **${woodAmount}** wood\n<:tool:1426514983159599135> **${toolsAmount}** tools\n<:stones:1426514985865056326> **${stoneAmount}** stone`;
     
-
-    const embed = createEmbed({
-      title: await t('timely.title', guildId),
-      description: `${interaction.user}, ${fortune}\n\n${rewardText}`,
-      footer: { text: "Use /vote for bonus rewards! DM bot for support" },
-      user: interaction.user,
-      color: 0x03168f
-    });
+    const rewardsMessage = new TextDisplayBuilder()
+      .setContent(rewardText);
     
-    await interaction.editReply({ embeds: [embed] });
+    const footerMessage = new TextDisplayBuilder()
+      .setContent('💡 **Tip:** Use `/vote` for bonus rewards!');
+    
+    const successContainer = new ContainerBuilder()
+      .addTextDisplayComponents(fortuneText)
+      .addSeparatorComponents(separator)
+      .addTextDisplayComponents(fortuneMessage)
+      .addSeparatorComponents(separator)
+      .addTextDisplayComponents(rewardsMessage)
+      .addSeparatorComponents(separator)
+      .addTextDisplayComponents(footerMessage)
+      .addSeparatorComponents(separator);
+    
+    await interaction.reply({
+      flags: MessageFlags.IsComponentsV2,
+      components: [successContainer]
+    });
     
   } catch (error) {
     console.error('Error in timely command:', error);

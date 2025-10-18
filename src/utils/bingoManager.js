@@ -364,3 +364,37 @@ export const resetAllCompletedBingoCards = async () => {
     throw error;
   }
 };
+
+export const resetAllBingoCards = async () => {
+  try {
+    const { query } = await import('./database.js');
+    const { generateRandomBingoGrid } = await import('./bingoGenerator.js');
+    
+    const allCards = await query('SELECT user_id FROM bingo_cards');
+    let resetCount = 0;
+    
+    for (const card of allCards) {
+      try {
+        const newGridData = await generateRandomBingoGrid();
+        
+        await query(`
+          UPDATE bingo_cards 
+          SET grid_data = ?, completed_positions = ?, is_completed = 0, completed_at = NULL, updated_at = CURRENT_TIMESTAMP
+          WHERE user_id = ?
+        `, [JSON.stringify(newGridData), '[]', card.user_id]);
+        
+        resetCount++;
+        
+        invalidateBingoCache(card.user_id);
+      } catch (error) {
+        console.error(`Error resetting bingo card for user ${card.user_id}:`, error);
+      }
+    }
+    
+    console.log(`Reset ${resetCount} bingo cards at daily reset`);
+    return resetCount;
+  } catch (error) {
+    console.error('Error resetting all bingo cards:', error);
+    throw error;
+  }
+};

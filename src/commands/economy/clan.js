@@ -507,7 +507,7 @@ export default {
 
         const embed = createEmbed({
           title: 'Create Your Clan',
-          description: `You don't have a clan yet! Creating a clan costs **${CLAN_CREATION_COST.toLocaleString()}** <:bits:1411354539935666197>.\n\n**Your current bits:** ${pony.bits.toLocaleString()} <:bits:1411354539935666197>`,
+          description: `You don't have a clan yet! Creating a clan costs **${CLAN_CREATION_COST.toLocaleString()}** <:bits:1429131029628588153>.\n\n**Your current bits:** ${pony.bits.toLocaleString()} <:bits:1429131029628588153>`,
           color: 0x3498DB
         });
         
@@ -517,7 +517,7 @@ export default {
               .setCustomId('clan_create')
               .setLabel(`Create Clan`)
               .setStyle(ButtonStyle.Secondary)
-              .setEmoji('<:bits:1411354539935666197>')
+              .setEmoji('<:bits:1429131029628588153>')
               .setDisabled(pony.bits < CLAN_CREATION_COST)
           );
         
@@ -1785,7 +1785,7 @@ export default {
           return await interaction.editReply({
             embeds: [createEmbed({
               title: '❌ Insufficient Bits',
-              description: `You need **${CLAN_CREATION_COST.toLocaleString()}** <:bits:1411354539935666197> bits to create a clan.\nYou have: **${pony.bits.toLocaleString()}** <:bits:1411354539935666197> bits.`,
+              description: `You need **${CLAN_CREATION_COST.toLocaleString()}** <:bits:1429131029628588153> bits to create a clan.\nYou have: **${pony.bits.toLocaleString()}** <:bits:1429131029628588153> bits.`,
               color: 0xFF0000
             })]
           });

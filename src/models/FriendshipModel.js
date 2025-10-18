@@ -891,8 +891,8 @@ export const updatePonyFriend = async (id, updates) => {
 
 export const getPonyFriendsByRarity = async (rarity, excludeIds = []) => {
   try {
-    let sql = 'SELECT * FROM pony_friends WHERE rarity = ?';
-    const params = [rarity];
+    let sql = 'SELECT * FROM pony_friends WHERE rarity = ? AND name != ?';
+    const params = [rarity, 'aryanne'];
 
     if (excludeIds.length > 0) {
       sql += ` AND id NOT IN (${excludeIds.join(',')})`;
@@ -919,6 +919,8 @@ export const getLowerRarityPonyFriends = async (currentRarity, excludeIds = []) 
       const lowerRarity = rarityOrder[i];
       let ponies = await getPonyFriendsByRarity(lowerRarity, excludeIds);
 
+      // Дополнительно фильтруем aryanne на случай, если она прошла через другие функции
+      ponies = ponies.filter(pony => pony.name !== 'aryanne');
 
       if (ponies && ponies.length > 0) {
         return ponies;

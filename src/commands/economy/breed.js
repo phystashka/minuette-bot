@@ -359,7 +359,7 @@ export async function execute(interaction) {
         if (poniesOfRarity && poniesOfRarity.length > 0) {
 
           const availablePonies = poniesOfRarity.filter(pony => 
-            pony.rarity !== 'EVENT'
+            pony.rarity !== 'EVENT' && pony.name !== 'aryanne'
           );
           
           if (availablePonies.length > 0) {
@@ -429,7 +429,7 @@ export async function execute(interaction) {
             
             if (poniesOfRarity && poniesOfRarity.length > 0) {
               const availablePonies = poniesOfRarity.filter(pony => 
-                pony.rarity !== 'EVENT'
+                pony.rarity !== 'EVENT' && pony.name !== 'aryanne'
               );
               
               if (availablePonies.length > 0) {
@@ -640,7 +640,7 @@ export const handleClaimBreeding = async (interaction) => {
 
     const embed = createEmbed({
       title: 'Breeding Result Claimed!',
-      description: `Congratulations! You have successfully claimed your new pony from breeding!\n\n${RARITY_EMOJIS[ponyInfo.rarity]} **${ponyInfo.name}**\n\n**Rewards:**\n<:bits:1411354539935666197> ${bitsReward} bits\n<:harmony:1416514347789844541> ${harmonyReward} harmony\n\n${newFriend.isNew ? 'This pony has been added to your collection!' : `You already had this pony (now you have ${newFriend.encounterCount || 'multiple'} of them)`}`,
+      description: `Congratulations! You have successfully claimed your new pony from breeding!\n\n${RARITY_EMOJIS[ponyInfo.rarity]} **${ponyInfo.name}**\n\n**Rewards:**\n<:bits:1429131029628588153>  ${bitsReward} bits\n<:harmony:1416514347789844541> ${harmonyReward} harmony\n\n${newFriend.isNew ? 'This pony has been added to your collection!' : `You already had this pony (now you have ${newFriend.encounterCount || 'multiple'} of them)`}`,
       color: RARITY_COLORS[ponyInfo.rarity],
       image: ponyInfo.image,
       footer: { text: `Use /myponies to view your collection` }

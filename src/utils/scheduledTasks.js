@@ -2,7 +2,7 @@
 import cron from 'node-cron';
 import { clearAllTempImages } from './ponyImageCache.js';
 import { cleanExpiredArtifacts, cleanAutocatchHistory } from './artifactManager.js';
-import { resetAllCompletedBingoCards } from './bingoManager.js';
+import { resetAllBingoCards } from './bingoManager.js';
 
 export const startScheduledTasks = (client) => {
   console.log('Starting scheduled tasks...');
@@ -43,16 +43,16 @@ export const startScheduledTasks = (client) => {
   });
 
   cron.schedule('0 0 * * *', async () => {
-    console.log('Resetting completed bingo cards...');
+    console.log('🔄 Daily bingo reset: resetting ALL bingo cards...');
     try {
-      const resetCount = await resetAllCompletedBingoCards();
+      const resetCount = await resetAllBingoCards();
       if (resetCount > 0) {
-        console.log(`✅ Reset ${resetCount} completed bingo cards`);
+        console.log(`✅ Daily reset: Reset ${resetCount} bingo cards for all users`);
       } else {
-        console.log('No completed bingo cards to reset');
+        console.log('No bingo cards found to reset');
       }
     } catch (error) {
-      console.error('❌ Error during bingo card reset:', error);
+      console.error('❌ Error during daily bingo reset:', error);
     }
   });
   

@@ -131,7 +131,7 @@ export async function execute(interaction) {
     if (bingoCard.is_completed) {
       statusText = `**COMPLETED!** New card available in: **${timeUntilReset}**`;
     } else {
-      statusText = `**Goal:** Complete 2 different line types\n**Reset in:** ${timeUntilReset}\n**Max potential reward:** ${potentialReward.keys} <a:goldkey:1426332679103709314>, ${potentialReward.bits} <:bits:1411354539935666197>, ${potentialReward.cases} <:case:1417301084291993712>`;
+      statusText = `**Goal:** Complete 2 different line types\n**Reset in:** ${timeUntilReset}\n**Max potential reward:** ${potentialReward.keys} <a:goldkey:1426332679103709314>, ${potentialReward.bits} <:bits:1429131029628588153>, ${potentialReward.cases} <:case:1417301084291993712>`;
       if (potentialReward.diamonds > 0) {
         statusText += `, ${potentialReward.diamonds} <a:diamond:1423629073984524298>`;
       }

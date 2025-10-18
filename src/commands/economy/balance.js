@@ -1,68 +1,150 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { 
+  SlashCommandBuilder,
+  ButtonBuilder, 
+  ButtonStyle,
+  MessageFlags,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize
+} from 'discord.js';
 import { getPonyByUserId, depositToBank, withdrawFromBank } from '../../models/PonyModel.js';
 import { getDiamonds } from '../../models/ResourceModel.js';
 import { getHarmony } from '../../models/HarmonyModel.js';
 import { createEmbed } from '../../utils/components.js';
 import { t } from '../../utils/localization.js';
 
-const createBankEmbed = async (pony, user, guildId, diamonds, harmony) => {
-  return createEmbed({
-    title: `${await t('balance.your_balance', guildId)} — ${user.username}`,
-    fields: [
-      { name: `> <:bits:1411354539935666197> ${await t('balance.cash', guildId)} ${await t('balance.bits', guildId)}`, value: `\`\`\`${pony.bits} ${await t('currency.bits', guildId)}\`\`\``, inline: true },
-      { name: `> <:bits:1411354539935666197> ${await t('balance.bank', guildId)} ${await t('balance.bits', guildId)}`, value: `\`\`\`${pony.bank_balance || 0} ${await t('currency.bits', guildId)}\`\`\``, inline: true },
-      { name: `> <a:diamond:1423629073984524298> Diamonds`, value: `\`\`\`${diamonds} diamonds\`\`\``, inline: true },
-      { name: `> <:harmony:1416514347789844541> Harmony`, value: `\`\`\`${harmony} harmony\`\`\``, inline: true }
-    ],
-    user: user,
-    color: 0x03168f
-  });
+const createBankWithAmountSelection = async (pony, user, guildId, diamonds, harmony, action) => {
+  const headerText = new TextDisplayBuilder()
+    .setContent(`**${user.username}'s Balance**\n-# Your financial overview and currency status`);
+
+  const separator = new SeparatorBuilder()
+    .setDivider(true)
+    .setSpacing(SeparatorSpacingSize.Small);
+
+  const balanceContent = new TextDisplayBuilder()
+    .setContent(`<:bits:1429131029628588153> **Cash:** \`${pony.bits.toLocaleString()} bits\`\n<:bits:1429131029628588153> **Bank:** \`${(pony.bank_balance || 0).toLocaleString()} bits\`\n<a:diamond:1423629073984524298> **Diamonds:** \`${diamonds.toLocaleString()} diamonds\`\n<:harmony:1416514347789844541> **Harmony:** \`${harmony.toLocaleString()} harmony\``);
+
+  const instructionText = new TextDisplayBuilder()
+    .setContent(action === 'deposit' 
+      ? '**Select Deposit Amount**\n-# Choose how many bits to deposit into your bank'
+      : '**Select Withdraw Amount**\n-# Choose how many bits to withdraw from your bank');
+
+  const amount100Button = new ButtonBuilder()
+    .setCustomId(`bank_${action}_100`)
+    .setLabel('100 bits')
+    .setStyle(ButtonStyle.Secondary);
+
+  const amount500Button = new ButtonBuilder()
+    .setCustomId(`bank_${action}_500`)
+    .setLabel('500 bits')
+    .setStyle(ButtonStyle.Secondary);
+
+  const amount1000Button = new ButtonBuilder()
+    .setCustomId(`bank_${action}_1000`)
+    .setLabel('1000 bits')
+    .setStyle(ButtonStyle.Secondary);
+
+  const amount5000Button = new ButtonBuilder()
+    .setCustomId(`bank_${action}_5000`)
+    .setLabel('5000 bits')
+    .setStyle(ButtonStyle.Secondary);
+
+  const amountAllButton = new ButtonBuilder()
+    .setCustomId(`bank_${action}_all`)
+    .setLabel('All bits')
+    .setStyle(ButtonStyle.Secondary);
+
+  const amountSection1 = new SectionBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('**Quick Amounts**')
+    )
+    .setButtonAccessory(amount100Button);
+
+  const amountSection2 = new SectionBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('Small amount for testing')
+    )
+    .setButtonAccessory(amount500Button);
+
+  const amountSection3 = new SectionBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('Medium amount for regular transactions')
+    )
+    .setButtonAccessory(amount1000Button);
+
+  const amountSection4 = new SectionBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('Large amount for big transactions')
+    )
+    .setButtonAccessory(amount5000Button);
+
+  const amountSection5 = new SectionBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('Transfer everything you have')
+    )
+    .setButtonAccessory(amountAllButton);
+
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(headerText)
+    .addSeparatorComponents(separator)
+    .addTextDisplayComponents(balanceContent)
+    .addSeparatorComponents(separator)
+    .addTextDisplayComponents(instructionText)
+    .addSeparatorComponents(separator)
+    .addSectionComponents(amountSection1)
+    .addSectionComponents(amountSection2)
+    .addSectionComponents(amountSection3)
+    .addSectionComponents(amountSection4)
+    .addSectionComponents(amountSection5);
+
+  return container;
 };
 
-const createAmountButtons = async (customId, guildId, disabled = false) => {
-  return new ActionRowBuilder()
-    .addComponents(
-      new ButtonBuilder()
-        .setCustomId(`${customId}_100`)
-        .setLabel(`100 ${await t('currency.bits', guildId)}`)
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(disabled),
-      new ButtonBuilder()
-        .setCustomId(`${customId}_500`)
-        .setLabel(`500 ${await t('currency.bits', guildId)}`)
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(disabled),
-      new ButtonBuilder()
-        .setCustomId(`${customId}_1000`)
-        .setLabel(`1000 ${await t('currency.bits', guildId)}`)
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(disabled),
-      new ButtonBuilder()
-        .setCustomId(`${customId}_5000`)
-        .setLabel(`5000 ${await t('currency.bits', guildId)}`)
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(disabled),
-      new ButtonBuilder()
-        .setCustomId(`${customId}_all`)
-        .setLabel(`${await t('balance.all', guildId)} ${await t('currency.bits', guildId)}`)
-        .setStyle(ButtonStyle.Secondary)
-        .setDisabled(disabled)
-    );
-};
+const createBankComponentsV2 = async (pony, user, guildId, diamonds, harmony) => {
+  const headerText = new TextDisplayBuilder()
+    .setContent(`**${user.username}'s Balance**\n-# Your financial overview and currency status`);
 
-const createActionButtons = async (guildId) => {
-  return new ActionRowBuilder()
-    .addComponents(
-      new ButtonBuilder()
-        .setCustomId('bank_deposit')
-        .setLabel(await t('balance.deposit', guildId))
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId('bank_withdraw')
-        .setLabel(await t('balance.withdraw', guildId))
-        .setStyle(ButtonStyle.Secondary)
-    );
+  const separator = new SeparatorBuilder()
+    .setDivider(true)
+    .setSpacing(SeparatorSpacingSize.Small);
+
+  const balanceContent = new TextDisplayBuilder()
+    .setContent(`<:bits:1429131029628588153> **Cash:** \`${pony.bits.toLocaleString()} bits\`\n<:bits:1429131029628588153> **Bank:** \`${(pony.bank_balance || 0).toLocaleString()} bits\`\n<a:diamond:1423629073984524298> **Diamonds:** \`${diamonds.toLocaleString()} diamonds\`\n<:harmony:1416514347789844541> **Harmony:** \`${harmony.toLocaleString()} harmony\``);
+
+  const depositButton = new ButtonBuilder()
+    .setCustomId('bank_deposit')
+    .setLabel('Deposit')
+    .setStyle(ButtonStyle.Secondary);
+
+  const withdrawButton = new ButtonBuilder()
+    .setCustomId('bank_withdraw')
+    .setLabel('Withdraw')
+    .setStyle(ButtonStyle.Secondary);
+
+  const depositSection = new SectionBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('**Bank Operations**'),
+      new TextDisplayBuilder().setContent('Deposit bits into your bank for safekeeping')
+    )
+    .setButtonAccessory(depositButton);
+
+  const withdrawSection = new SectionBuilder()
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('Withdraw bits from your bank when needed')
+    )
+    .setButtonAccessory(withdrawButton);
+
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(headerText)
+    .addSeparatorComponents(separator)
+    .addTextDisplayComponents(balanceContent)
+    .addSeparatorComponents(separator)
+    .addSectionComponents(depositSection)
+    .addSectionComponents(withdrawSection);
+
+  return container;
 };
 
 export const data = new SlashCommandBuilder()
@@ -77,36 +159,40 @@ export async function execute(interaction) {
     const guildId = interaction.guild?.id;
     
     if (!pony) {
+      const noPonyText = new TextDisplayBuilder()
+        .setContent('You need to create a pony first! Use `/venture` to get started.');
+      
+      const noPonyContainer = new ContainerBuilder()
+        .addTextDisplayComponents(noPonyText);
+      
       return await interaction.reply({ 
-        content: await t('balance.need_pony', guildId), 
-        ephemeral: true 
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        components: [noPonyContainer]
       });
     }
-
 
     const diamonds = await getDiamonds(interaction.user.id);
     const harmony = await getHarmony(interaction.user.id);
 
     console.log('[BANK-CMD] Found pony:', pony);
-    const embed = await createBankEmbed(pony, interaction.user, guildId, diamonds, harmony);
-    const actionRow = await createActionButtons(guildId);
+    const container = await createBankComponentsV2(pony, interaction.user, guildId, diamonds, harmony);
 
     await interaction.reply({
-      embeds: [embed],
-      components: [actionRow]
+      flags: MessageFlags.IsComponentsV2,
+      components: [container]
     });
   } catch (error) {
     console.error('[BANK-CMD] Error in bank command:', error);
+    
+    const errorText = new TextDisplayBuilder()
+      .setContent('An error occurred while fetching your balance.');
+    
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(errorText);
+    
     await interaction.reply({
-      embeds: [
-        createEmbed({
-          title: await t('balance.title', interaction.guild?.id),
-          description: await t('error.generic', interaction.guild?.id),
-          user: interaction.user,
-          color: 0x03168f
-        })
-      ],
-      ephemeral: true
+      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+      components: [errorContainer]
     });
   }
 }
@@ -121,10 +207,22 @@ export async function handleButton(interaction) {
     const guildId = interaction.guild?.id;
     if (message.interaction && message.interaction.user.id !== interaction.user.id) {
       console.log('[BANK-BTN] Access denied - wrong user');
-      return await interaction.reply({
-        content: await t('balance.button_access_denied', guildId),
-        ephemeral: true
-      });
+      
+      const accessDeniedText = new TextDisplayBuilder()
+        .setContent('Only the pony who opened this bank account can use these buttons!');
+      
+      const accessDeniedContainer = new ContainerBuilder()
+        .addTextDisplayComponents(accessDeniedText);
+      
+      try {
+        return await interaction.reply({
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+          components: [accessDeniedContainer]
+        });
+      } catch (replyError) {
+        console.log('Failed to reply to unauthorized user in bank interaction:', replyError.code);
+        return;
+      }
     }
 
     const parts = interaction.customId.split('_');
@@ -139,9 +237,16 @@ export async function handleButton(interaction) {
     const pony = await getPonyByUserId(interaction.user.id);
     if (!pony) {
       console.log('[BANK-BTN] Pony not found');
+      
+      const ponyNotFoundText = new TextDisplayBuilder()
+        .setContent('You need to create a pony first! Use `/venture` to get started.');
+      
+      const ponyNotFoundContainer = new ContainerBuilder()
+        .addTextDisplayComponents(ponyNotFoundText);
+      
       return await interaction.reply({ 
-        content: await t('balance.pony_not_found', guildId), 
-        ephemeral: true 
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        components: [ponyNotFoundContainer]
       });
     }
 
@@ -152,21 +257,112 @@ export async function handleButton(interaction) {
 
       if (action === 'deposit' || action === 'withdraw') {
         console.log('[BANK-BTN] Showing amount selection for:', action);
-        const amountRow = await createAmountButtons(`bank_${action}_amount`, guildId);
-        
 
         const diamonds = await getDiamonds(interaction.user.id);
         const harmony = await getHarmony(interaction.user.id);
         
-        const embed = await createBankEmbed(pony, interaction.user, guildId, diamonds, harmony);
-        
-        embed.setDescription(action === 'deposit' 
-          ? await t('balance.select_deposit_amount', guildId)
-          : await t('balance.select_withdraw_amount', guildId));
+        const container = await createBankWithAmountSelection(pony, interaction.user, guildId, diamonds, harmony, action);
 
         await interaction.update({
-          embeds: [embed],
-          components: [amountRow],
+          flags: MessageFlags.IsComponentsV2,
+          components: [container],
+        });
+        return;
+      }
+    } else if (restParts.length === 2) {
+      const [action, amount] = restParts;
+      
+      if ((action === 'deposit' || action === 'withdraw') && amount) {
+        console.log('[BANK-BTN] Processing amount transaction');
+        console.log('[BANK-BTN] Action:', action, 'Amount:', amount);
+
+        const isDeposit = action === 'deposit';
+        let amountToMove = parseInt(amount);
+
+        if (amount === 'all') {
+          amountToMove = isDeposit ? pony.bits : (pony.bank_balance || 0);
+          console.log('[BANK-BTN] Using ALL amount:', amountToMove);
+        }
+
+        console.log('[BANK-BTN] Amount to move:', amountToMove);
+
+        if (amountToMove <= 0) {
+          console.log('[BANK-BTN] Invalid amount - showing regular balance');
+          
+          const diamonds = await getDiamonds(interaction.user.id);
+          const harmony = await getHarmony(interaction.user.id);
+          const container = await createBankComponentsV2(pony, interaction.user, guildId, diamonds, harmony);
+          
+          await interaction.update({
+            flags: MessageFlags.IsComponentsV2,
+            components: [container],
+            content: null
+          });
+          return;
+        }
+
+        if (isDeposit && amountToMove > pony.bits) {
+          console.log('[BANK-BTN] Insufficient cash for deposit');
+          
+          const insufficientText = new TextDisplayBuilder()
+            .setContent(`You don't have enough cash! You have ${pony.bits.toLocaleString()} bits but need ${amountToMove.toLocaleString()} bits.`);
+          
+          const insufficientContainer = new ContainerBuilder()
+            .addTextDisplayComponents(insufficientText);
+          
+          return await interaction.reply({
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            components: [insufficientContainer]
+          });
+        }
+
+        if (!isDeposit && amountToMove > (pony.bank_balance || 0)) {
+          console.log('[BANK-BTN] Insufficient bank balance for withdrawal');
+          
+          const insufficientText = new TextDisplayBuilder()
+            .setContent(`You don't have enough bits in your bank! You have ${(pony.bank_balance || 0).toLocaleString()} bits but need ${amountToMove.toLocaleString()} bits.`);
+          
+          const insufficientContainer = new ContainerBuilder()
+            .addTextDisplayComponents(insufficientText);
+          
+          return await interaction.reply({
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            components: [insufficientContainer]
+          });
+        }
+
+        if (isDeposit) {
+          await depositToBank(interaction.user.id, amountToMove);
+          console.log('[BANK-BTN] Deposited', amountToMove, 'bits');
+        } else {
+          await withdrawFromBank(interaction.user.id, amountToMove);
+          console.log('[BANK-BTN] Withdrew', amountToMove, 'bits');
+        }
+
+        const updatedPony = await getPonyByUserId(interaction.user.id);
+        console.log('[BANK-BTN] After transaction - Cash:', updatedPony.bits, 'Bank:', updatedPony.bank_balance || 0);
+
+        const diamonds = await getDiamonds(interaction.user.id);
+        const harmony = await getHarmony(interaction.user.id);
+
+        const container = await createBankComponentsV2(updatedPony, interaction.user, guildId, diamonds, harmony);
+        
+        const successText = new TextDisplayBuilder()
+          .setContent(isDeposit
+            ? `**Deposit Successful**\n-# Deposited ${amountToMove.toLocaleString()} bits into your bank`
+            : `**Withdrawal Successful**\n-# Withdrew ${amountToMove.toLocaleString()} bits from your bank`);
+        
+        const successSeparator = new SeparatorBuilder()
+          .setDivider(true)
+          .setSpacing(SeparatorSpacingSize.Small);
+
+        container.addSeparatorComponents(successSeparator);
+        container.addTextDisplayComponents(successText);
+
+        await interaction.update({
+          flags: MessageFlags.IsComponentsV2,
+          components: [container],
+          content: null
         });
         return;
       }
@@ -186,10 +382,16 @@ export async function handleButton(interaction) {
         }
 
         if (amountToMove <= 0) {
-          console.log('[BANK-BTN] Invalid amount:', amountToMove);
+          console.log('[BANK-BTN] Invalid amount - showing regular balance:', amountToMove);
+          
+          const diamonds = await getDiamonds(interaction.user.id);
+          const harmony = await getHarmony(interaction.user.id);
+          const container = await createBankComponentsV2(pony, interaction.user, guildId, diamonds, harmony);
+          
           return await interaction.update({
-            content: await t('balance.cannot_move_zero', guildId),
-            components: [await createActionButtons(guildId)]
+            flags: MessageFlags.IsComponentsV2,
+            components: [container],
+            content: null
           });
         }
 
@@ -204,35 +406,46 @@ export async function handleButton(interaction) {
 
         if (!success) {
           const errorMessage = isDeposit
-            ? await t('balance.insufficient_cash', guildId, { current: pony.bits, required: amountToMove })
-            : await t('balance.insufficient_bank', guildId, { current: pony.bank_balance || 0, required: amountToMove });
+            ? `You don't have enough cash! You have ${pony.bits.toLocaleString()} bits but need ${amountToMove.toLocaleString()} bits.`
+            : `You don't have enough bits in your bank! You have ${(pony.bank_balance || 0).toLocaleString()} bits but need ${amountToMove.toLocaleString()} bits.`;
 
           console.log('[BANK-BTN] Transaction failed:', errorMessage);
+          
+          const failureText = new TextDisplayBuilder()
+            .setContent(errorMessage);
+          
+          const failureContainer = new ContainerBuilder()
+            .addTextDisplayComponents(failureText);
+            
           return await interaction.update({
-            embeds: [createEmbed({
-              title: await t('balance.insufficient_funds', guildId),
-              description: errorMessage,
-              user: interaction.user
-            })],
-            components: [await createActionButtons(guildId)]
+            flags: MessageFlags.IsComponentsV2,
+            components: [failureContainer]
           });
         }
 
         const updatedPony = await getPonyByUserId(interaction.user.id);
         console.log('[BANK-BTN] After transaction - Cash:', updatedPony.bits, 'Bank:', updatedPony.bank_balance || 0);
 
-
         const diamonds = await getDiamonds(interaction.user.id);
         const harmony = await getHarmony(interaction.user.id);
 
-        const embed = await createBankEmbed(updatedPony, interaction.user, guildId, diamonds, harmony);
-        embed.setDescription(isDeposit
-          ? await t('balance.deposit_success', guildId, { amount: amountToMove })
-          : await t('balance.withdraw_success', guildId, { amount: amountToMove }));
+        const container = await createBankComponentsV2(updatedPony, interaction.user, guildId, diamonds, harmony);
+        
+        const successText = new TextDisplayBuilder()
+          .setContent(isDeposit
+            ? `**Deposit Successful**\n-# Deposited ${amountToMove.toLocaleString()} bits into your bank`
+            : `**Withdrawal Successful**\n-# Withdrew ${amountToMove.toLocaleString()} bits from your bank`);
+        
+        const successSeparator = new SeparatorBuilder()
+          .setDivider(true)
+          .setSpacing(SeparatorSpacingSize.Small);
+
+        container.addSeparatorComponents(successSeparator);
+        container.addTextDisplayComponents(successText);
 
         await interaction.update({
-          embeds: [embed],
-          components: [await createActionButtons(guildId)],
+          flags: MessageFlags.IsComponentsV2,
+          components: [container],
           content: null
         });
         return;
@@ -244,29 +457,24 @@ export async function handleButton(interaction) {
   } catch (error) {
     console.error('[BANK-BTN] Error in bank button handler:', error);
     console.error('[BANK-BTN] Stack trace:', error.stack);
+    
+    const errorText = new TextDisplayBuilder()
+      .setContent('An error occurred while processing your bank transaction.');
+    
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(errorText);
+    
     try {
       await interaction.reply({
-        embeds: [
-          createEmbed({
-            title: await t('error.title', guildId),
-            description: await t('error.generic', guildId),
-            user: interaction.user
-          })
-        ],
-        ephemeral: true
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        components: [errorContainer]
       });
     } catch (replyError) {
       console.error('[BANK-BTN] Failed to send error reply:', replyError);
       try {
         await interaction.update({
-          embeds: [
-            createEmbed({
-              title: await t('error.title', guildId),
-              description: await t('error.generic', guildId),
-              user: interaction.user
-            })
-          ],
-          components: [],
+          flags: MessageFlags.IsComponentsV2,
+          components: [errorContainer]
         });
       } catch (updateError) {
         console.error('[BANK-BTN] Failed to update with error:', updateError);

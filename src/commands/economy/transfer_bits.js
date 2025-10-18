@@ -2,7 +2,11 @@ import {
   SlashCommandBuilder, 
   ActionRowBuilder, 
   ButtonBuilder, 
-  ButtonStyle
+  ButtonStyle,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags
 } from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { getPony, removeBits, addBits } from '../../utils/pony/index.js';
@@ -12,6 +16,30 @@ import { t } from '../../utils/localization.js';
 
 const cooldowns = new Map();
 const COOLDOWN_DURATION = 2 * 60 * 1000;
+
+function createNoPonyContainer(title, description) {
+  const container = new ContainerBuilder();
+  
+  const titleText = new TextDisplayBuilder()
+    .setContent(`**${title}**`);
+  container.addTextDisplayComponents(titleText);
+  
+  const separator = new SeparatorBuilder();
+  container.addSeparatorComponents(separator);
+  
+  const descText = new TextDisplayBuilder()
+    .setContent(description);
+  container.addTextDisplayComponents(descText);
+  
+  const separator2 = new SeparatorBuilder();
+  container.addSeparatorComponents(separator2);
+  
+  const guideText = new TextDisplayBuilder()
+    .setContent('**🎯 How to get started:**\nUse `/equestria` to create your own pony and begin your magical journey in Equestria!');
+  container.addTextDisplayComponents(guideText);
+  
+  return container;
+}
 
 export const data = new SlashCommandBuilder()
   .setName('transfer_bits')
@@ -92,29 +120,29 @@ export async function execute(interaction) {
     
     const senderPony = await getPony(userId);
     if (!senderPony) {
+      const title = await t('equestria.no_pony_title', guildId);
+      const description = await t('equestria.no_pony_description', guildId);
+      
+      const cleanTitle = title.replace('❌ ', '');
+      
+      const container = createNoPonyContainer(cleanTitle, description);
+      
       return interaction.reply({
-        embeds: [
-          createEmbed({
-            title: await t('equestria.no_pony_title', guildId),
-            description: await t('equestria.no_pony_description', guildId),
-            color: 0x03168f
-          })
-        ],
-        ephemeral: true
+        components: [container],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
     }
     
     const receiverPony = await getPony(targetUser.id);
     if (!receiverPony) {
+      const container = createNoPonyContainer(
+        'Target Pony Not Found',
+        `${targetUser.username} doesn't have a pony! They need to create a pony using the \`/equestria\` command first.`
+      );
+      
       return interaction.reply({
-        embeds: [
-          createEmbed({
-            title: '❌ Pony not found',
-            description: `${targetUser.username} doesn't have a pony! They need to create a pony using the \`/equestria\` command.`,
-            color: 0x03168f
-          })
-        ],
-        ephemeral: true
+        components: [container],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
     }
     
