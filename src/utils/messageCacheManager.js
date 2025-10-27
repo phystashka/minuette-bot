@@ -4,6 +4,7 @@ import { QuestBatchUpdater } from './questBatchUpdater.js';
 import { EmbedBuilder } from 'discord.js';
 import { getCutieMarkForPony } from './cutiemarksManager.js';
 import { getPonyExperienceBonus } from '../commands/economy/rebirth.js';
+import { getImageInfo } from './imageResolver.js';
 
 class MessageCacheManager {
   constructor() {
@@ -270,10 +271,13 @@ class MessageCacheManager {
           const cutieMark = await getCutieMarkForPony(activePony.name, newLevel, activePony.friend_id);
           const cutieMarkDisplay = cutieMark ? `${cutieMark} ` : '';
           
+          const imageInfo = getImageInfo(activePony.image);
+          const thumbnailUrl = imageInfo.type === 'url' ? imageInfo.url : null;
+          
           const levelUpEmbed = new EmbedBuilder()
             .setDescription(`<@${userId}>, **${cutieMarkDisplay}${activePony.name}** reached friendship level **${newLevel}**!`)
             .setColor(0x7CC9F9)
-            .setThumbnail(activePony.image || null);
+            .setThumbnail(thumbnailUrl);
           
           await userData.channel.send({ embeds: [levelUpEmbed] });
         }

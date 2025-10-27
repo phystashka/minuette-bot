@@ -1,6 +1,7 @@
 import { getPony } from './ponyUtils.js';
 import { createEmbed } from '../components.js';
 import { t } from '../localization.js';
+import { getGuildId } from '../guildUtils.js';
 import { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags } from 'discord.js';
 
 export function createNoPonyContainer(title, description) {
@@ -30,7 +31,7 @@ export function createNoPonyContainer(title, description) {
 export async function requirePony(interaction, next) {
   try {
     const userId = interaction.user.id;
-    const guildId = interaction.guild?.id;
+    const guildId = getGuildId(interaction);
     const pony = await getPony(userId);
     
     if (!pony) {

@@ -328,16 +328,11 @@ export const PONY_DATA = [
   { name: 'Night Light', description: 'Twilight Sparkle and Shining Armor\'s father, a supportive and intellectual unicorn.', image: 'https://i.imgur.com/4yLT1Z2.png', pony_type: 'unicorn', is_canon: 1, rarity: 'RARE', background: 'canterlot', family_group: 'sparkle_family' },
   { name: 'Dusty Pages', description: 'Twilight\'s favorite elderly librarian from Canterlot, dedicated to preserving knowledge.', image: 'https://i.imgur.com/b5PKWHW.png', pony_type: 'unicorn', is_canon: 1, rarity: 'RARE', background: 'canterlot', family_group: null },
   
-  // === LEGEND ===
   { name: 'Sphinx', description: 'A tyrannical creature with a pony head, lion body, and eagle wings, who terrorizes villages with riddles and demands tribute.', image: 'https://i.imgur.com/oUy3B6A.png', pony_type: 'sphinx', is_canon: 1, rarity: 'LEGEND', background: 'somnambula_village', family_group: null },
   { name: 'Tantabus', description: 'A parasitic magical force created by Princess Luna to punish herself by turning dreams into nightmares.', image: 'https://i.imgur.com/TWd1kdz.png', pony_type: 'magical_creature', is_canon: 1, rarity: 'LEGEND', background: 'dream_realm', family_group: null },
-  // === SECRET ===
   { name: 'Pony of Shadows', description: 'The dark entity formed when Stygian merged with shadows, a powerful antagonist seeking revenge on the Pillars of Old Equestria.', image: 'https://i.imgur.com/wSMPftz.png', pony_type: 'shadow_pony', is_canon: 1, rarity: 'SECRET', background: 'limbo', family_group: null },
-  // === MYTHIC ===
   { name: 'Stygian', description: 'A scholarly unicorn who assembled the Pillars of Old Equestria but became the Pony of Shadows after feeling betrayed.', image: 'https://i.imgur.com/TWd1kdz.png', pony_type: 'unicorn', is_canon: 1, rarity: 'MYTHIC', background: 'equestria', family_group: null },
-  // === EPIC ===
   { name: 'Gilded Lily', description: 'Fancy Pants\' niece, a young unicorn filly who appears in the IDW comics, seeking her cutie mark with the Crusaders\' help.', image: 'https://i.imgur.com/elL8t13.png', pony_type: 'unicorn', is_canon: 1, rarity: 'EPIC', background: 'canterlot', family_group: null },
-  // === RARE ===
   { name: 'Seabreeze', description: 'An outspoken male Breezie leader who guides his group during migration, speaking in a Scottish-like accent.', image: 'https://i.imgur.com/I8gkNTb.png', pony_type: 'breezie', is_canon: 1, rarity: 'RARE', background: 'breezie_grove', family_group: 'breezie_family' },
   { name: 'Soyokaze', description: 'A breezie from the tiny winged creature community in Breezie Hollow.', image: 'https://i.imgur.com/n2wPtwd.png', pony_type: 'breezie', is_canon: 1, rarity: 'RARE', background: 'breezie_grove', family_group: 'breezie_family' },
   { name: 'Ghostberry', description: 'A breezie from the tiny winged creature community in Breezie Hollow.', image: 'https://i.imgur.com/Yb8CHxG.png', pony_type: 'breezie', is_canon: 1, rarity: 'RARE', background: 'breezie_grove', family_group: 'breezie_family' },
@@ -392,6 +387,7 @@ export const PONY_DATA = [
   { name: 'Bulk Biceps', description: 'A muscular pegasus with a loud personality and brief Wonderbolt trainee.', image: 'https://i.imgur.com/8mdNfC0.png', pony_type: 'pegasus', is_canon: 1, rarity: 'BASIC', background: 'ponyville', family_group: null },
   { name: 'Mr. Shy', description: 'Fluttershy\'s reserved father who lives in Cloudsdale and supports her love for animals.', image: 'https://i.imgur.com/HxPjoAQ.png', pony_type: 'pegasus', is_canon: 1, rarity: 'BASIC', background: 'cloudsdale', family_group: 'shy_family' },
   { name: 'Mrs. Shy', description: 'Fluttershy\'s reserved mother who lives in Cloudsdale and supports her daughter\'s passion.', image: 'https://i.imgur.com/Xohee32.png', pony_type: 'pegasus', is_canon: 1, rarity: 'BASIC', background: 'cloudsdale', family_group: 'shy_family' },
+  { name: 'Creamy Caramel', description: 'A bat with an unknown history, probably looking for a new home in the forest.', image: 'Creamy Caramel.png', pony_type: 'batpony', is_canon: 0, rarity: 'ADMIN', background: 'unknown', family_group: null },
   { name: 'Zephyr Breeze', description: 'Fluttershy\'s carefree younger brother who aspires to be a mane therapist.', image: 'https://i.imgur.com/lntvL4i.png', pony_type: 'pegasus', is_canon: 1, rarity: 'BASIC', background: 'cloudsdale', family_group: 'shy_family' },
   { name: 'Rainbow Stars', description: 'Rainbow Stars is the placeholder name of a female background unicorn pony who first appears in Brotherhooves Social', image: 'https://i.imgur.com/ksUXEUv.png', pony_type: 'unicorn', is_canon: 1, rarity: 'BASIC', background: 'ponyville', family_group: null },
   { name: 'Sugar Belle', description: 'An earth pony baker from Starlight\'s village, who later becomes Big McIntosh\'s love interest.', image: 'https://i.imgur.com/KsylPw8.png', pony_type: 'earth', is_canon: 1, rarity: 'BASIC', background: 'our_town', family_group: null },
@@ -406,7 +402,6 @@ export const PONY_DATA = [
   { name: 'Cherry Berry', description: 'An earth pony mare with a pink coat and red mane, often seen in Ponyville.', image: 'https://i.imgur.com/B87mxYY.png', pony_type: 'earth', is_canon: 1, rarity: 'BASIC', background: 'ponyville', family_group: null },
   { name: 'Daisy', description: 'An earth pony who works at the flower shop alongside Roseluck and Lily Valley.', image: 'https://i.imgur.com/btX7ThW.png', pony_type: 'earth', is_canon: 1, rarity: 'BASIC', background: 'ponyville', family_group: null },
   
-  // More Breezie characters
   { name: 'Flutter Breezie', description: 'A small and gentle breezie who loves flowers and helps pollinate the magical gardens of the breezie realm.', image: 'https://i.imgur.com/FlutterBreezie.png', pony_type: 'breezie', is_canon: 1, rarity: 'BASIC', background: 'breezie_realm', family_group: 'breezie_colony' },
   { name: 'Zippy Breezie', description: 'A fast-flying breezie messenger who carries important news between the breezie colonies.', image: 'https://i.imgur.com/ZippyBreezie.png', pony_type: 'breezie', is_canon: 1, rarity: 'BASIC', background: 'breezie_realm', family_group: 'breezie_colony' },
   
@@ -495,8 +490,36 @@ export const PONY_DATA = [
   { name: 'Brown Rose', description: 'Author - boniosuprocomic', image: 'https://i.imgur.com/9AEL8jx.gif', pony_type: 'pegasus', is_canon: 0, rarity: 'CUSTOM' },
   { name: 'Pumpkin Seed', description: 'You own oc of the one who created this bot :3', image: 'https://i.imgur.com/IyKE47K.png', pony_type: 'unicorn', is_canon: 0, rarity: 'CUSTOM' },
   { name: 'Starlight Lulamoon', description: 'A unicorn from Hazy Illusionton with starlight magic from constellations, raised by Zecora in Everfree Forest, bearing a half-moon cutie mark with stars.', image: 'https://i.imgur.com/RDEJo3h.png', pony_type: 'unicorn', is_canon: 0, rarity: 'CUSTOM' },
-  
 
+  { name: 'Chaos Chrysalis', description: 'A chaos-empowered variant of Queen Chrysalis from the Legion of Doom, enhanced by Grogar\'s Bewitching Bell in season 9, amplifying her shape-shifting and manipulative abilities.', image: 'https://i.imgur.com/chaoschrysalis.png', pony_type: 'changeling', is_canon: 1, rarity: 'LEGEND', background: 'changeling_hive', family_group: null },
+  { name: 'Chaos Cozy Glow', description: 'A chaos-empowered variant of Cozy Glow from the Legion of Doom, enhanced by Grogar\'s Bewitching Bell in season 9, boosting her deceptive and magical prowess.', image: 'https://i.imgur.com/chaoscozyglow.png', pony_type: 'pegasus', is_canon: 1, rarity: 'LEGEND', background: 'ponyville', family_group: null },
+  { name: 'Chrysalis', description: 'The reformed version of Queen Chrysalis, who has turned good and aids Equestria after redemption, embracing friendship and leading her changelings peacefully.', image: 'https://i.imgur.com/reformedchrysalis.png', pony_type: 'changeling', is_canon: 0, rarity: 'LEGEND', background: 'changeling_hive', family_group: null },
+
+  { name: 'Smooze', description: 'A massive slime creature and friend of Discord, appearing at the Grand Galloping Gala, capable of growing and consuming objects while spreading negativity.', image: 'https://i.imgur.com/smooze.png', pony_type: 'smooze', is_canon: 1, rarity: 'MYTHIC', background: 'canterlot', family_group: null },
+  { name: 'Windigo', description: 'Winter spirits that feed on hatred and fighting among ponies, bringing eternal cold and blizzards to Equestria as a result of disharmony.', image: 'https://i.imgur.com/windigo.png', pony_type: 'spirit', is_canon: 1, rarity: 'MYTHIC', background: 'equestria', family_group: null },
+  { name: 'Parasprites', description: 'Small, insect-like creatures that reproduce rapidly and devour everything in sight, causing chaos in Ponyville by multiplying uncontrollably.', image: 'https://i.imgur.com/parasprites.png', pony_type: 'parasprite', is_canon: 1, rarity: 'MYTHIC', background: 'ponyville', family_group: null },
+
+  { name: 'Bugbear', description: 'A hybrid monster with the body of a panda bear, insect antennae, wings, and a stinger, escaped from Tartarus and known for its aggressive attacks.', image: 'https://i.imgur.com/bugbear.png', pony_type: 'bugbear', is_canon: 1, rarity: 'EPIC', background: 'tartarus', family_group: null },
+  { name: 'Nirik', description: 'The fiery, rage-induced form of Kirins, transforming when angered, with dark coats, blue flames, and destructive abilities tied to their emotions.', image: 'https://i.imgur.com/nirik.png', pony_type: 'kirin', is_canon: 1, rarity: 'EPIC', background: 'kirin_village', family_group: null },
+  { name: 'Timberwolves', description: 'Wolf-like creatures made of wood and branches, inhabiting the Everfree Forest, capable of reforming after being destroyed and hunting in packs.', image: 'https://i.imgur.com/timberwolves.png', pony_type: 'timberwolf', is_canon: 1, rarity: 'EPIC', background: 'everfree_forest', family_group: null },
+  { name: 'Orthros', description: 'A two-headed dog from Tartarus, ferocious yet trainable, with one head often more dominant, traded among ponies for its loyalty as a pet.', image: 'https://i.imgur.com/orthros.png', pony_type: 'orthros', is_canon: 1, rarity: 'EPIC', background: 'tartarus', family_group: null },
+  { name: 'Cerberus', description: 'The massive three-headed dog guarding the gates of Tartarus, preventing creatures from escaping, loyal but occasionally distracted by play.', image: 'https://i.imgur.com/cerberus.png', pony_type: 'cerberus', is_canon: 1, rarity: 'EPIC', background: 'tartarus', family_group: null },
+  { name: 'Chimera', description: 'A dangerous creature with tiger, goat, and snake heads, residing in the Flame Geyser Swamp, known for its predatory nature and multiple personalities.', image: 'https://i.imgur.com/chimera.png', pony_type: 'chimera', is_canon: 1, rarity: 'EPIC', background: 'flame_geyser_swamp', family_group: null },
+  { name: 'Hydra', description: 'A multi-headed swamp-dwelling serpent with regenerative heads, aggressive and territorial, chasing ponies through the Froggy Bottom Bogg.', image: 'https://i.imgur.com/hydra.png', pony_type: 'hydra', is_canon: 1, rarity: 'EPIC', background: 'froggy_bottom_bogg', family_group: null },
+  
+  { name: 'RariFruit', description: 'A possessed version of Rarity from the Elements of Insanity GMod animations, warped by the spirit of Rubberfruit, obsessed with hats and chaotic generosity.', image: 'https://i.imgur.com/VAH8L1f.png', pony_type: 'unicorn', is_canon: 0, rarity: 'UNIQUE', background: 'mann_manor', family_group: null },
+  { name: 'Fluttershout', description: 'A possessed version of Fluttershy from the Elements of Insanity GMod animations, infused with Vagineer\'s spirit, turning her kindness into violent outbursts.', image: 'https://i.imgur.com/tq1206e.png', pony_type: 'pegasus', is_canon: 0, rarity: 'UNIQUE', background: 'mann_manor', family_group: null },
+  { name: 'Applepills', description: 'A possessed version of Applejack from the Elements of Insanity GMod animations, addicted to painkillers after consuming pills, gaining enhanced strength.', image: 'https://i.imgur.com/fxzfIHs.png', pony_type: 'earth', is_canon: 0, rarity: 'UNIQUE', background: 'mann_manor', family_group: null },
+  { name: 'Pinkis Cupcake', description: 'A possessed version of Pinkie Pie from the Elements of Insanity GMod animations, merged with Painis Cupcake\'s spirit, craving cupcakes and causing mayhem.', image: 'https://i.imgur.com/9O1R83u.png', pony_type: 'earth', is_canon: 0, rarity: 'UNIQUE', background: 'mann_manor', family_group: null },
+  { name: 'Rainbine', description: 'A possessed version of Rainbow Dash from the Elements of Insanity GMod animations, cybernetically enhanced by Scombine, becoming a mechanical shooter.', image: 'https://i.imgur.com/O7QsAHg.png', pony_type: 'pegasus', is_canon: 0, rarity: 'UNIQUE', background: 'mann_manor', family_group: null },
+  { name: 'Brutalight Sparcake', description: 'A possessed version of Twilight Sparkle from the Elements of Insanity GMod animations, leader infused with Christian Brutal Sniper and Weaselcake spirits, wielding dual personalities and deadly magic.', image: 'https://i.imgur.com/Jc4Y9KO.png', pony_type: 'alicorn', is_canon: 0, rarity: 'UNIQUE', background: 'mann_manor', family_group: null },
+  { name: 'Derpigun', description: 'A possessed version of Derpy Hooves from the Elements of Insanity GMod animations, infused with a gun-wielding maniac spirit, blending goofy charm with chaotic firepower.', image: 'https://i.imgur.com/Pl5bn1a.png', pony_type: 'pegasus', is_canon: 0, rarity: 'UNIQUE', background: 'mann_manor', family_group: null },
+
+  { name: 'Pinkie Pie Bat', description: 'A non-canon bat pony version of Pinkie Pie, with bouncy energy and bat wings, throwing glow-in-the-dark parties under the moonlight.', image: 'https://i.imgur.com/OEwPPrp.png', pony_type: 'bat_pony', is_canon: 0, rarity: 'UNIQUE', background: 'ponyville', family_group: null },
+  { name: 'Rarity Bat', description: 'A non-canon bat pony version of Rarity, with sleek bat wings and a flair for crafting dazzling, night-themed fashion designs.', image: 'https://i.imgur.com/Prz6bHU.png', pony_type: 'bat_pony', is_canon: 0, rarity: 'UNIQUE', background: 'ponyville', family_group: null },
+  { name: 'Twilight Sparkle Bat', description: 'A non-canon bat pony version of Twilight Sparkle, combining her magical prowess with bat-like agility and a love for starry night studies.', image: 'https://i.imgur.com/jZG9vVA.png', pony_type: 'bat_pony', is_canon: 0, rarity: 'UNIQUE', background: 'canterlot', family_group: null },
+  { name: 'Rainbow Dash Bat', description: 'A non-canon bat pony version of Rainbow Dash, soaring with bat wings and performing daring nighttime stunts with unmatched speed.', image: 'https://i.imgur.com/MmkVpPP.png', pony_type: 'bat_pony', is_canon: 0, rarity: 'UNIQUE', background: 'cloudsdale', family_group: null },
+  { name: 'Applejack Bat', description: 'A non-canon bat pony version of Applejack, with rugged bat wings, tending orchards by moonlight with her signature honesty and strength.', image: 'https://i.imgur.com/OEwPPrp.png', pony_type: 'bat_pony', is_canon: 0, rarity: 'UNIQUE', background: 'sweet_apple_acres', family_group: 'apple_family' },
 
   { name: 'Sweetie Angel', description: 'Sweetie Belle transformed into a celestial being of pure innocence and light. Her angelic form radiates divine harmony, with pristine white wings and a golden halo. She brings hope and comfort to all ponies, spreading joy through her angelic melodies.', image: 'https://i.imgur.com/PYT8DBk.png', pony_type: 'unicorn', is_canon: 1, rarity: 'EVENT' },
   { name: 'Rarity Angel', description: 'The Element of Generosity ascended to angelic grace. Rarity\'s divine form embodies celestial beauty and ultimate elegance, with shimmering wings that sparkle like starlight. Her angelic presence brings redemption and inspires others to find their inner light.', image: 'https://i.imgur.com/NqJ81Ao.png', pony_type: 'unicorn', is_canon: 1, rarity: 'EVENT' },
@@ -913,13 +936,12 @@ export const getPonyFriendsByRarity = async (rarity, excludeIds = []) => {
 
 export const getLowerRarityPonyFriends = async (currentRarity, excludeIds = []) => {
   try {
-    const rarityOrder = ['EXCLUSIVE', 'UNIQUE', 'SECRET', 'CUSTOM', 'LEGEND', 'MYTHIC', 'EPIC', 'RARE', 'BASIC'];
+    const rarityOrder = ['ADMIN', 'EXCLUSIVE', 'UNIQUE', 'SECRET', 'CUSTOM', 'LEGEND', 'MYTHIC', 'EPIC', 'RARE', 'BASIC'];
     const currentIndex = rarityOrder.indexOf(currentRarity);
     for (let i = currentIndex + 1; i < rarityOrder.length; i++) {
       const lowerRarity = rarityOrder[i];
       let ponies = await getPonyFriendsByRarity(lowerRarity, excludeIds);
 
-      // Дополнительно фильтруем aryanne на случай, если она прошла через другие функции
       ponies = ponies.filter(pony => pony.name !== 'aryanne');
 
       if (ponies && ponies.length > 0) {

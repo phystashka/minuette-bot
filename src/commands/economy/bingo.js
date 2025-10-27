@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, AttachmentBuilder } from 'discord.js';
+import { SlashCommandBuilder, AttachmentBuilder, ContainerBuilder, SectionBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags } from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { requirePony } from '../../utils/pony/ponyMiddleware.js';
 import { 
@@ -15,10 +15,30 @@ import {
   setBingoImageCache 
 } from '../../utils/bingoImageCache.js';
 import { 
-  calculateBingoRewardForDisplay,
-  getTimeUntilBingoReset 
+  calculateBingoRewardForDisplay 
 } from '../../utils/bingoManager.js';
-import { t } from '../../utils/localization.js';
+
+function createLoadingContainer() {
+  const container = new ContainerBuilder();
+  
+  const loadingText = new TextDisplayBuilder()
+    .setContent('<a:loading_line:1416130253428097135> **Loading your bingo card...**');
+  container.addTextDisplayComponents(loadingText);
+  
+  return container;
+}
+
+function getHammerTime(date) {
+  const timestamp = Math.floor(date.getTime() / 1000);
+  return `<t:${timestamp}:R>`;
+}
+
+function getNextBingoResetTime() {
+  const now = new Date();
+  const nextMidnight = new Date(now);
+  nextMidnight.setUTCHours(24, 0, 0, 0);
+  return nextMidnight;
+}
 
 function logBingoGrid(userId, username, gridData, completedPositions) {
   console.log(`\n[BINGO GRID] User: ${username} (${userId})`);
@@ -71,12 +91,16 @@ export const data = new SlashCommandBuilder()
 
 export async function execute(interaction) {
   try {
-    await interaction.deferReply();
+    const loadingContainer = createLoadingContainer();
+    await interaction.reply({
+      components: [loadingContainer],
+      flags: MessageFlags.IsComponentsV2
+    });
 
     await createBingoTable();
 
     const userId = interaction.user.id;
-    const guildId = interaction.guild?.id;
+    const guildId = userId === '1372601851781972038' ? null : interaction.guild?.id;
 
     let bingoCard = await getBingoCard(userId);
 
@@ -86,10 +110,17 @@ export async function execute(interaction) {
         await createBingoCard(userId, gridData);
         bingoCard = await getBingoCard(userId);
       } catch (error) {
-        console.error('Error generating bingo card:', error);
+        console.error('Error creating bingo card:', error);
+        
+        const errorText = new TextDisplayBuilder()
+          .setContent('**❌ Bingo Card Generation Failed**\n\nUnable to generate your bingo card. Please make sure there are enough pony images available and try again later.');
+          
+        const errorContainer = new ContainerBuilder()
+          .addTextDisplayComponents(errorText);
+          
         return interaction.editReply({
-          content: 'Error generating bingo card. Please make sure there are enough pony images available.',
-          ephemeral: true
+          components: [errorContainer],
+          flags: MessageFlags.IsComponentsV2
         });
       }
     }
@@ -100,9 +131,16 @@ export async function execute(interaction) {
       completedPositions = JSON.parse(bingoCard.completed_positions);
     } catch (error) {
       console.error('Error parsing bingo card data:', error);
+      
+      const errorText = new TextDisplayBuilder()
+        .setContent('**❌ Data Loading Error**\n\nUnable to load your bingo card data. Please try the command again.');
+        
+      const errorContainer = new ContainerBuilder()
+        .addTextDisplayComponents(errorText);
+        
       return interaction.editReply({
-        content: 'Error loading your bingo card. Please try again.',
-        ephemeral: true
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2
       });
     }
 
@@ -118,46 +156,85 @@ export async function execute(interaction) {
       }
     } catch (error) {
       console.error('Error creating bingo image:', error);
+      
+      const errorText = new TextDisplayBuilder()
+        .setContent('**🖼️ Image Generation Error**\n\nUnable to generate your bingo card image. Please try again later.');
+        
+      const errorContainer = new ContainerBuilder()
+        .addTextDisplayComponents(errorText);
+        
       return interaction.editReply({
-        content: 'Error generating bingo image. Please try again later.',
-        ephemeral: true
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2
       });
     }
 
     const potentialReward = calculateBingoRewardForDisplay(gridData);
-    const timeUntilReset = getTimeUntilBingoReset();
+    const nextResetTime = getNextBingoResetTime();
+    const hammerTime = getHammerTime(nextResetTime);
     
-    let statusText = '';
-    if (bingoCard.is_completed) {
-      statusText = `**COMPLETED!** New card available in: **${timeUntilReset}**`;
-    } else {
-      statusText = `**Goal:** Complete 2 different line types\n**Reset in:** ${timeUntilReset}\n**Max potential reward:** ${potentialReward.keys} <a:goldkey:1426332679103709314>, ${potentialReward.bits} <:bits:1429131029628588153>, ${potentialReward.cases} <:case:1417301084291993712>`;
-      if (potentialReward.diamonds > 0) {
-        statusText += `, ${potentialReward.diamonds} <a:diamond:1423629073984524298>`;
-      }
-      statusText += ` (${potentialReward.tier})\n*Actual reward depends on ponies in completed lines*`;
-    }
-
     const attachment = new AttachmentBuilder(imageBuffer, { 
       name: 'bingo-card.png' 
     });
 
+    const mediaGallery = new MediaGalleryBuilder()
+      .addItems(
+        new MediaGalleryItemBuilder()
+          .setURL(`attachment://bingo-card.png`)
+      );
+
+    let statusContent;
+    let statusTitle;
+    
+    if (bingoCard.is_completed) {
+      statusTitle = "**BINGO COMPLETED!**";
+      statusContent = `Congratulations! You've completed your bingo card!\n\n**Next Card Available:** ${hammerTime}`;
+    } else {
+      statusTitle = "**Your Bingo Card**";
+      statusContent = `**Goal:** Complete 2 different line types\n**Reset:** ${hammerTime}\n\n**Maximum Potential Reward:**\n• ${potentialReward.keys} <a:goldkey:1426332679103709314> Keys\n• ${potentialReward.bits} <:bits:1429131029628588153> Bits\n• ${potentialReward.cases} <:case:1417301084291993712> Cases`;
+      
+      if (potentialReward.diamonds > 0) {
+        statusContent += `\n• ${potentialReward.diamonds} <a:diamond:1423629073984524298> Gems`;
+      }
+      
+      statusContent += `\n\n**Tier:** ${potentialReward.tier}\n-# *Actual reward depends on ponies in completed lines*`;
+    }
+
+    const statusText = new TextDisplayBuilder()
+      .setContent(`${statusTitle}\n\n${statusContent}`);
+
+    const separator = new SeparatorBuilder()
+      .setSpacing(SeparatorSpacingSize.Small);
+
+    const container = new ContainerBuilder()
+      .addTextDisplayComponents(statusText)
+      .addSeparatorComponents(separator)
+      .addMediaGalleryComponents(mediaGallery);
+
     await interaction.editReply({
-      content: statusText,
-      files: [attachment]
+      components: [container],
+      files: [attachment],
+      flags: MessageFlags.IsComponentsV2
     });
 
   } catch (error) {
     console.error('Error in bingo command:', error);
     
+    const errorText = new TextDisplayBuilder()
+      .setContent('**⚠️ Unexpected Error**\n\nAn unexpected error occurred while processing your bingo card. Please try again later.');
+      
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(errorText);
+    
     if (interaction.deferred) {
       await interaction.editReply({
-        content: 'An error occurred while processing your bingo card.',
-        ephemeral: true
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2
       });
     } else {
       await interaction.reply({
-        content: 'An error occurred while processing your bingo card.',
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2,
         ephemeral: true
       });
     }

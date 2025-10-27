@@ -67,12 +67,16 @@ export const BACKGROUNDS = {
     hidden: true,
     rewardOnly: true,
     description: 'Exclusive reward for fully decorating Ponyville for Nightmare Night!'
-
-
-
-
-
-
+  },
+  
+  TRIXIE_HALLOWEEN: { 
+    id: 'trixiehalloween_farm1', 
+    name: 'Trixie Halloween', 
+    file: 'trixiehalloween_farm1.png', 
+    cost: 0, 
+    hidden: true,
+    rewardOnly: true,
+    description: 'Exclusive clan season reward - magical Halloween theme with Trixie!'
   }
 };
 
@@ -297,4 +301,19 @@ export const grantNightmareNightBackground = async (userId) => {
 
 export const hasNightmareNightBackground = async (userId) => {
   return await hasBackground(userId, 'night_farm1');
+};
+
+export const grantTrixieHalloweenBackground = async (userId) => {
+  try {
+    await purchaseBackground(userId, 'trixiehalloween_farm1');
+    console.log(`[grantTrixieHalloweenBackground] Granted Trixie Halloween theme to user ${userId}`);
+    return true;
+  } catch (error) {
+    console.error('Error granting Trixie Halloween background:', error);
+    return false;
+  }
+};
+
+export const hasTrixieHalloweenBackground = async (userId) => {
+  return await hasBackground(userId, 'trixiehalloween_farm1');
 };

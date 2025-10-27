@@ -53,7 +53,11 @@ export const createSelectMenu = (options = {}) => {
 };
 
 export const createActionRow = (components = []) => {
-  return new ActionRowBuilder().addComponents(components);
+  const actionRow = new ActionRowBuilder();
+  if (components.length > 0) {
+    actionRow.addComponents(components);
+  }
+  return actionRow;
 };
 
 

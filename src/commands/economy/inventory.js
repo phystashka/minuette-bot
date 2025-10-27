@@ -12,7 +12,7 @@ import {
   ActionRowBuilder
 } from 'discord.js';
 import { getPonyByUserId } from '../../models/PonyModel.js';
-import ResourceModel, { getResourceAmount } from '../../models/ResourceModel.js';
+import ResourceModel, { getResourceAmount, getResourcesByUserId } from '../../models/ResourceModel.js';
 import { getHarmony } from '../../models/HarmonyModel.js';
 import { createEmbed } from '../../utils/components.js';
 import { t } from '../../utils/localization.js';
@@ -48,6 +48,7 @@ export async function execute(interaction) {
 
     const bankBalance = user.bank_balance || 0;
     const harmony = await getHarmony(targetUser.id);
+    const userResources = await getResourcesByUserId(targetUser.id);
 
     const wood = (await getResourceAmount(targetUser.id, 'wood')) || 0;
     const stone = (await getResourceAmount(targetUser.id, 'stone')) || 0;
@@ -61,11 +62,16 @@ export async function execute(interaction) {
     const forestHerbs = (await getResourceAmount(targetUser.id, 'forest_herbs')) || 0;
     const boneDust = (await getResourceAmount(targetUser.id, 'bone_dust')) || 0;
     const moonstoneShard = (await getResourceAmount(targetUser.id, 'moonstone_shard')) || 0;
+    const chips = (await getResourceAmount(targetUser.id, 'chips')) || 0;
+    const sparks = (await getResourceAmount(targetUser.id, 'sparks')) || 0;
 
     await showInventoryCategory(interaction, targetUser, 'currency', {
       bits: user.bits || 0,
       bankBalance,
       harmony,
+      magic_coins: userResources?.magic_coins || 0,
+      chips,
+      sparks,
       wood, stone, tools, apples, eggs, milk, expansion_plans,
       pumpkins, candies, forestHerbs, boneDust, moonstoneShard
     });
@@ -96,7 +102,7 @@ async function showInventoryCategory(interaction, targetUser, category, resource
       .setContent('**Currency & Economy**');
     
     const currencyContent = new TextDisplayBuilder()
-      .setContent(`<:bits:1411354539935666197> **Cash:** \`${resources.bits.toLocaleString()}\`\n<:bits:1411354539935666197> **Bank:** \`${resources.bankBalance.toLocaleString()}\`\n<:harmony:1416514347789844541> **Harmony:** \`${resources.harmony.toLocaleString()}\``);
+      .setContent(`<:bits:1411354539935666197> **Cash:** \`${resources.bits.toLocaleString()}\`\n<:bits:1411354539935666197> **Bank:** \`${resources.bankBalance.toLocaleString()}\`\n<:chips:1431269385405993010> **Chips:** \`${resources.chips.toLocaleString()}\`\n<:Sparkl:1431337628900528138> **Sparks:** \`${resources.sparks.toLocaleString()}\`\n<:harmony:1416514347789844541> **Harmony:** \`${resources.harmony.toLocaleString()}\`\n<:magic_coin:1431797469666217985> **Magic Coins:** \`${resources.magic_coins.toLocaleString()}\``);
     
     container.addTextDisplayComponents(currencyTitle);
     container.addTextDisplayComponents(currencyContent);
@@ -234,11 +240,15 @@ export async function handleInventoryInteraction(interaction) {
 
     const bankBalance = user.bank_balance || 0;
     const harmony = await getHarmony(targetUserId);
+    const userResources = await getResourcesByUserId(targetUserId);
 
     const resources = {
       bits: user.bits || 0,
       bankBalance,
       harmony,
+      magic_coins: userResources?.magic_coins || 0,
+      chips: (await getResourceAmount(targetUserId, 'chips')) || 0,
+      sparks: (await getResourceAmount(targetUserId, 'sparks')) || 0,
       wood: (await getResourceAmount(targetUserId, 'wood')) || 0,
       stone: (await getResourceAmount(targetUserId, 'stone')) || 0,
       tools: (await getResourceAmount(targetUserId, 'tools')) || 0,

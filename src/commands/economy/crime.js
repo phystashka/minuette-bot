@@ -11,6 +11,7 @@ import { requirePony } from '../../utils/pony/ponyMiddleware.js';
 import { addHarmony, removeHarmony } from '../../models/HarmonyModel.js';
 import { t } from '../../utils/localization.js';
 import { getGuildLanguage } from '../../models/GuildModel.js';
+import { getProtectedBits } from './balance.js';
 
 const COOLDOWN_TIME = 3 * 60 * 60 * 1000;
 const BITS_PERCENTAGE = 0.15;
@@ -188,6 +189,19 @@ export async function execute(interaction) {
       const container = createErrorContainer(
         await t('error.title', guildId),
         await t('crime.no_target_bits', guildId, { target: targetUser.username })
+      );
+      
+      return interaction.reply({
+        components: [container],
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
+      });
+    }
+
+    const protectedBits = getProtectedBits(targetId);
+    if (protectedBits > 0) {
+      const container = createErrorContainer(
+        'Bits Protected',
+        `🛡️ ${targetUser.username}'s bits are protected from theft! They recently withdrew money from the bank.`
       );
       
       return interaction.reply({

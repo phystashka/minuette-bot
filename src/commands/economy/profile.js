@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder } from 'discord.js';
+import { SlashCommandBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, MediaGalleryBuilder, MediaGalleryItemBuilder, MessageFlags } from 'discord.js';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -14,6 +14,7 @@ import { getUserFriends } from '../../models/FriendshipModel.js';
 import { loadImageWithProxy } from '../../utils/backgroundRenderer.js';
 import { getEquippedSkin } from '../../models/SkinModel.js';
 import { getCachedPonyImage, removeTempPonyImage } from '../../utils/ponyImageCache.js';
+import { getImageInfo } from '../../utils/imageResolver.js';
 import { getUserFarm, getExpansionPlans, getHarvestTime, isHarvestReady, changeFarmProduction, spendExpansionPlans } from '../../models/FarmModel.js';
 import { getUserRebirth } from './rebirth.js';
 import { 
@@ -26,6 +27,26 @@ import {
   getBackgroundInfo,
   ensureDefaultBackground
 } from '../../models/ProfileBackgroundModel.js';
+
+function createLoadingContainer() {
+  const container = new ContainerBuilder();
+  
+  const loadingText = new TextDisplayBuilder()
+    .setContent('<a:loading_line:1416130253428097135> **Loading profile...**');
+  container.addTextDisplayComponents(loadingText);
+  
+  return container;
+}
+
+function createSuccessContainer(message) {
+  const container = new ContainerBuilder();
+  
+  const successText = new TextDisplayBuilder()
+    .setContent(message);
+  container.addTextDisplayComponents(successText);
+  
+  return container;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -277,11 +298,19 @@ async function getFavoritePony(userId) {
 
       const equippedSkin = await getEquippedSkin(userId, result.name);
       let finalImage = result.image;
+      let imageType = 'url';
       
       if (equippedSkin) {
 
         const skinPath = path.join(__dirname, '../../public/skins', equippedSkin.filename);
         finalImage = skinPath;
+        imageType = 'skin';
+      } else {
+        const imageInfo = getImageInfo(result.image);
+        if (imageInfo && imageInfo.type === 'attachment') {
+          finalImage = imageInfo.attachmentPath;
+          imageType = 'local';
+        }
       }
       
       return {
@@ -290,7 +319,8 @@ async function getFavoritePony(userId) {
         experience: result.experience || 0,
         pony_name: result.name,
         pony_image: finalImage,
-        has_skin: !!equippedSkin
+        has_skin: !!equippedSkin,
+        image_type: imageType
       };
     }
     
@@ -470,25 +500,23 @@ export async function execute(interaction) {
   try {
 
     await interaction.reply({
-      embeds: [createEmbed({
-        description: '<a:loading_line:1416130253428097135> Loading profile...',
-        color: 0x03168f,
-        user: interaction.user
-      })]
+      components: [createLoadingContainer()],
+      flags: MessageFlags.IsComponentsV2
     });
 
     const targetUser = interaction.options.getUser('user') || interaction.user;
     
 
     if (targetUser.bot) {
+      const errorText = new TextDisplayBuilder()
+        .setContent('**Profile Error**\n\nCannot view profile of a bot!');
+        
+      const errorContainer = new ContainerBuilder()
+        .addTextDisplayComponents(errorText);
+      
       return interaction.editReply({
-        embeds: [createEmbed({
-          title: 'Profile Error',
-          description: 'Cannot view profile of a bot!',
-          color: 0x03168f,
-          user: interaction.user
-        })],
-        components: []
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2
       });
     }
     
@@ -654,22 +682,26 @@ export async function execute(interaction) {
             const familyButton = new ButtonBuilder()
               .setCustomId(`family_${targetUser.id}`)
               .setLabel('Family')
+              .setEmoji('<:heart:1431725328304308456>')
               .setStyle(ButtonStyle.Secondary)
               .setDisabled(!hasFamily);
 
             const backgroundButton = new ButtonBuilder()
               .setCustomId(`background_catalog_${targetUser.id}`)
               .setLabel('Background Catalog')
+              .setEmoji('<:image:1431725330141544508>')
               .setStyle(ButtonStyle.Secondary);
 
             const editPonyButton = new ButtonBuilder()
               .setCustomId(`edit_pony_${targetUser.id}`)
               .setLabel('Edit Pony')
+              .setEmoji('<:edit:1431725078923575306>')
               .setStyle(ButtonStyle.Primary);
 
             const changePonyButton = new ButtonBuilder()
               .setCustomId(`change_pony_${targetUser.id}`)
               .setLabel('Change Pony')
+              .setEmoji('<:swap:1431725076587479211>')
               .setStyle(ButtonStyle.Success);
 
             const row = new ActionRowBuilder().addComponents(familyButton, backgroundButton, editPonyButton, changePonyButton);
@@ -792,8 +824,11 @@ async function generateProfileImage(targetUser, pony, marriageData, adoptionData
         let favoritePonyImage;
         
 
-        if (favoritePony.has_skin && favoritePony.pony_image.includes('skins')) {
+        if (favoritePony.image_type === 'skin') {
           console.log('Loading skin from local file:', favoritePony.pony_image);
+          favoritePonyImage = await loadImage(favoritePony.pony_image);
+        } else if (favoritePony.image_type === 'local') {
+          console.log('Loading local pony image from ponies folder:', favoritePony.pony_image);
           favoritePonyImage = await loadImage(favoritePony.pony_image);
         } else {
 
@@ -1091,26 +1126,30 @@ async function generateProfileImage(targetUser, pony, marriageData, adoptionData
       if (commandInitiatorId && targetUser.id === commandInitiatorId) {
         const hasFamily = !!(marriageData || adoptionData);
         
-        const familyButton = new ButtonBuilder()
-          .setCustomId(`family_${targetUser.id}`)
-          .setLabel('Family')
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(!hasFamily);
+            const familyButton = new ButtonBuilder()
+              .setCustomId(`family_${targetUser.id}`)
+              .setLabel('Family')
+              .setEmoji('<:heart:1431725328304308456>')
+              .setStyle(ButtonStyle.Secondary)
+              .setDisabled(!hasFamily);
 
-        const backgroundButton = new ButtonBuilder()
-          .setCustomId(`background_catalog_${targetUser.id}`)
-          .setLabel('Background Catalog')
-          .setStyle(ButtonStyle.Secondary);
+            const backgroundButton = new ButtonBuilder()
+              .setCustomId(`background_catalog_${targetUser.id}`)
+              .setLabel('Background Catalog')
+              .setEmoji('<:image:1431725330141544508>')
+              .setStyle(ButtonStyle.Secondary);
 
-        const editPonyButton = new ButtonBuilder()
-          .setCustomId(`edit_pony_${targetUser.id}`)
-          .setLabel('Edit Pony')
-          .setStyle(ButtonStyle.Primary);
+            const editPonyButton = new ButtonBuilder()
+              .setCustomId(`edit_pony_${targetUser.id}`)
+              .setLabel('Edit Pony')
+              .setEmoji('<:edit:1431725078923575306>')
+              .setStyle(ButtonStyle.Primary);
 
-        const changePonyButton = new ButtonBuilder()
-          .setCustomId(`change_pony_${targetUser.id}`)
-          .setLabel('Change Pony')
-          .setStyle(ButtonStyle.Success);
+            const changePonyButton = new ButtonBuilder()
+              .setCustomId(`change_pony_${targetUser.id}`)
+              .setLabel('Change Pony')
+              .setEmoji('<:swap:1431725076587479211>')
+              .setStyle(ButtonStyle.Success);
 
         const row = new ActionRowBuilder().addComponents(familyButton, backgroundButton, editPonyButton, changePonyButton);
         components.push(row);
@@ -1128,22 +1167,39 @@ async function generateProfileImage(targetUser, pony, marriageData, adoptionData
 
     const attachment = new AttachmentBuilder(buffer, { name: 'profile.png' });
 
+    const mediaGallery = new MediaGalleryBuilder()
+      .addItems(
+        new MediaGalleryItemBuilder()
+          .setURL('attachment://profile.png')
+      );
+
+    const profileContainer = new ContainerBuilder()
+      .addMediaGalleryComponents(mediaGallery);
+
+    if (components && components.length > 0) {
+      components.forEach(component => {
+        profileContainer.addActionRowComponents(component);
+      });
+    }
+
     return interaction.editReply({
-      embeds: [],
+      components: [profileContainer],
       files: [attachment],
-      components: components
+      flags: MessageFlags.IsComponentsV2
     });
 
   } catch (error) {
     console.error('Error in profile command:', error);
+    
+    const errorText = new TextDisplayBuilder()
+      .setContent('**Profile Error**\n\nAn error occurred while generating your profile.');
+      
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(errorText);
+    
     return interaction.editReply({
-      embeds: [createEmbed({
-        title: 'Profile Error',
-        description: 'An error occurred while generating your profile.',
-        color: 0x03168f,
-        user: interaction.user
-      })],
-      components: []
+      components: [errorContainer],
+      flags: MessageFlags.IsComponentsV2
     });
   }
 }
@@ -1509,17 +1565,37 @@ export async function handleBackgroundCatalog(interaction, skipDefer = false) {
       ? `> **Status:** Owned` 
       : `> **Cost:** ${currentBackground.cost} bits\n> **Your balance:** ${userBits} bits`;
 
+    const catalogText = new TextDisplayBuilder()
+      .setContent(`**🎨 Background Catalog**\n**Background:** ${currentBackground.name}\n${statusText}`);
+    
+    const mediaGallery = new MediaGalleryBuilder()
+      .addItems(
+        new MediaGalleryItemBuilder()
+          .setURL(`attachment://background-preview.png`)
+      );
+    
+    const catalogContainer = new ContainerBuilder()
+      .addTextDisplayComponents(catalogText)
+      .addMediaGalleryComponents(mediaGallery);
+
     await interaction.editReply({
-      content: `# 🎨 Background Catalog\n> **Background:** ${currentBackground.name}\n${statusText}`,
+      components: [catalogContainer, ...components],
       files: [previewAttachment],
-      components: components
+      flags: MessageFlags.IsComponentsV2
     });
 
   } catch (error) {
     console.error('Error in handleBackgroundCatalog:', error);
+    
+    const errorText = new TextDisplayBuilder()
+      .setContent('**❌ Error**\n\nAn error occurred while loading the background catalog.');
+    
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(errorText);
+    
     await interaction.editReply({
-      content: 'An error occurred while loading the background catalog.',
-      components: []
+      components: [errorContainer],
+      flags: MessageFlags.IsComponentsV2
     });
   }
 }
@@ -1541,19 +1617,28 @@ async function handleBackgroundPurchase(interaction, userId, backgroundId, backg
     const backgroundInfo = getBackgroundInfo(backgroundId);
     
     if (!backgroundInfo) {
+      const notFoundContainer = new ContainerBuilder();
+      const notFoundText = new TextDisplayBuilder()
+        .setContent('**Background not found!**\n\nThe requested background could not be found.');
+      notFoundContainer.addTextDisplayComponents(notFoundText);
+
       return interaction.editReply({
-        content: 'Background not found!',
-        components: []
+        components: [notFoundContainer],
+        flags: MessageFlags.IsComponentsV2
       });
     }
 
 
     const alreadyHas = await hasBackground(userId, backgroundId);
     if (alreadyHas) {
+      const ownedContainer = new ContainerBuilder();
+      const ownedText = new TextDisplayBuilder()
+        .setContent('**You already own this background!**\n\nUse the "Apply" button to set it as your profile background.');
+      ownedContainer.addTextDisplayComponents(ownedText);
 
       return interaction.editReply({
-        content: `> ✅ **You already own this background!**\n> Use the "Apply" button to set it as your profile background.`,
-        components: []
+        components: [ownedContainer],
+        flags: MessageFlags.IsComponentsV2
       });
     }
 
@@ -1561,9 +1646,14 @@ async function handleBackgroundPurchase(interaction, userId, backgroundId, backg
     const pony = await getPony(userId);
     const totalUserBits = (pony?.bits || 0) + (pony?.bank_balance || 0);
     if (!pony || totalUserBits < backgroundInfo.cost) {
+      const insufficientContainer = new ContainerBuilder();
+      const insufficientText = new TextDisplayBuilder()
+        .setContent(`**Insufficient funds!**\n\n**Required:** ${backgroundInfo.cost} bits\n**Your balance:** ${totalUserBits} bits`);
+      insufficientContainer.addTextDisplayComponents(insufficientText);
+
       return interaction.editReply({
-        content: `> ❌ **Insufficient funds!**\n> **Required:** ${backgroundInfo.cost} bits\n> **Your balance:** ${totalUserBits} bits`,
-        components: []
+        components: [insufficientContainer],
+        flags: MessageFlags.IsComponentsV2
       });
     }
 
@@ -1589,9 +1679,15 @@ async function handleBackgroundPurchase(interaction, userId, backgroundId, backg
 
     if (actualDeducted !== backgroundInfo.cost) {
       console.error(`[PURCHASE DEBUG] Bit deduction mismatch! Expected: ${backgroundInfo.cost}, Actual: ${actualDeducted}`);
+      
+      const failedContainer = new ContainerBuilder();
+      const failedText = new TextDisplayBuilder()
+        .setContent('**Transaction failed!**\n\nMake sure you withdraw your bits from the bank.');
+      failedContainer.addTextDisplayComponents(failedText);
+
       return interaction.editReply({
-        content: `> ❌ **Transaction failed!**\n> Make sure you withdraw your bits from the bank.`,
-        components: []
+        components: [failedContainer],
+        flags: MessageFlags.IsComponentsV2
       });
     }
     
@@ -1605,9 +1701,15 @@ async function handleBackgroundPurchase(interaction, userId, backgroundId, backg
     
   } catch (error) {
     console.error('Error in handleBackgroundPurchase:', error);
+    
+    const errorContainer = new ContainerBuilder();
+    const errorText = new TextDisplayBuilder()
+      .setContent('**Error occurred**\n\nAn error occurred while purchasing the background.');
+    errorContainer.addTextDisplayComponents(errorText);
+
     await interaction.editReply({
-      content: 'An error occurred while purchasing the background.',
-      components: []
+      components: [errorContainer],
+      flags: MessageFlags.IsComponentsV2
     });
   }
 }
@@ -1682,16 +1784,87 @@ async function handleBackgroundApply(interaction, userId, backgroundId) {
     
     console.log(`Total cache entries cleared for user ${userId}: ${totalCleared}`);
 
+    const targetUser = interaction.user;
+    
+    const loadingContainer = createLoadingContainer();
     await interaction.editReply({
-      content: `> ✅ **Background applied successfully!**\n> **"${backgroundInfo.name}"** is now active on your profile.`,
-      components: []
+      components: [loadingContainer],
+      flags: MessageFlags.IsComponentsV2
     });
+
+    try {
+      const canvas = await createBaseTemplate(targetUser, backgroundId);
+      const buffer = canvas.toBuffer('image/png');
+      const attachment = new AttachmentBuilder(buffer, { name: 'profile.png' });
+      
+      const statusText = new TextDisplayBuilder()
+        .setContent(`**Background Applied Successfully!**\n\n**"${backgroundInfo.name}"** is now active on your profile.`);
+
+      const mediaGallery = new MediaGalleryBuilder()
+        .addItems(
+          new MediaGalleryItemBuilder()
+            .setURL('attachment://profile.png')
+        );
+
+      const separator = new SeparatorBuilder()
+        .setSpacing(SeparatorSpacingSize.Small);
+
+      const profileButtons = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId(`family_${targetUser.id}`)
+            .setLabel('Family')
+            .setEmoji('<:heart:1431725328304308456>')
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId(`backgrounds_${targetUser.id}`)
+            .setLabel('Background Catalog')
+            .setEmoji('<:image:1431725330141544508>')
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId(`edit_pony_${targetUser.id}`)
+            .setLabel('Edit Pony')
+            .setEmoji('<:edit:1431725078923575306>')
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId(`change_pony_${targetUser.id}`)
+            .setLabel('Change Pony')
+            .setEmoji('<:swap:1431725076587479211>')
+            .setStyle(ButtonStyle.Success)
+        );
+
+      const container = new ContainerBuilder()
+        .addTextDisplayComponents(statusText)
+        .addSeparatorComponents(separator)
+        .addMediaGalleryComponents(mediaGallery)
+        .addActionRowComponents(profileButtons);
+
+      await interaction.editReply({
+        components: [container],
+        files: [attachment],
+        flags: MessageFlags.IsComponentsV2
+      });
+
+    } catch (profileError) {
+      console.error('Error regenerating profile after background change:', profileError);
+      
+      await interaction.editReply({
+        components: [createSuccessContainer(`**Background Applied Successfully!**\n\n**"${backgroundInfo.name}"** is now active on your profile.\n\nUse \`/profile\` to see your updated profile.`)],
+        flags: MessageFlags.IsComponentsV2
+      });
+    }
     
   } catch (error) {
     console.error('Error in handleBackgroundApply:', error);
+    
+    const errorContainer = new ContainerBuilder();
+    const errorText = new TextDisplayBuilder()
+      .setContent('**Error occurred**\n\nAn error occurred while applying the background.');
+    errorContainer.addTextDisplayComponents(errorText);
+
     await interaction.editReply({
-      content: 'An error occurred while applying the background.',
-      components: []
+      components: [errorContainer],
+      flags: MessageFlags.IsComponentsV2
     });
   }
 }
@@ -1902,29 +2075,8 @@ export async function handleEditPonyModal(interaction) {
       }
       
       await interaction.editReply({
-        embeds: [createEmbed({
-          title: '✅ Pony Data Updated',
-          description: 'Your pony information has been successfully updated!',
-          fields: [
-            {
-              name: '🏷️ Name',
-              value: ponyName,
-              inline: true
-            },
-            {
-              name: '🎂 Age', 
-              value: `${age} years`,
-              inline: true
-            },
-            {
-              name: '🦄 Race',
-              value: normalizedRace,
-              inline: true
-            }
-          ],
-          color: 0x03168f,
-          user: interaction.user
-        })]
+        components: [createSuccessContainer(`**✅ Pony Data Updated**\n\nYour pony information has been successfully updated!\n\n**🏷️ Name**\n${ponyName}\n\n**🎂 Age**\n${age} years\n\n**🦄 Race**\n${normalizedRace}`)],
+        flags: MessageFlags.IsComponentsV2
       });
       
     } catch (dbError) {
@@ -1961,7 +2113,7 @@ async function handleFarmDetails(interaction, userId) {
     if (!userFarm) {
       return await interaction.editReply({
         embeds: [createEmbed({
-          title: '❌ No Farm Found',
+          title: 'No Farm Found',
           description: 'You need to create a farm first!',
           color: 0x03168f,
           user: interaction.user
@@ -2436,24 +2588,29 @@ export async function handleChangePonyModal(interaction) {
     const equippedSkin = await getEquippedSkin(userId, foundPony.name);
     const skinInfo = equippedSkin ? ` with **${equippedSkin.name}** skin` : '';
     
+    const successText = new TextDisplayBuilder()
+      .setContent(`**Profile Pony Changed**\n\nSuccessfully set **${foundPony.name}** (ID: \`${friendshipId}\`)${skinInfo} as your profile pony!\n\n🎉 Your profile will now display this pony. Use the \`/profile\` command to see your updated profile.\n\n💡 **Tip:** You can change your profile pony anytime by clicking the "Change Pony" button on your profile.`);
+    
+    const successContainer = new ContainerBuilder()
+      .addTextDisplayComponents(successText);
+    
     await interaction.editReply({
-      embeds: [createEmbed({
-        title: '✅ Profile Pony Changed',
-        description: `Successfully set **${foundPony.name}** (ID: \`${friendshipId}\`)${skinInfo} as your profile pony!\n\n🎉 Your profile will now display this pony. Use the \`/profile\` command to see your updated profile.\n\n💡 **Tip:** You can change your profile pony anytime by clicking the "Change Pony" button on your profile.`,
-        color: 0x03168f,
-        user: interaction.user
-      })]
+      components: [successContainer],
+      flags: MessageFlags.IsComponentsV2
     });
     
   } catch (error) {
     console.error('Error in handleChangePonyModal:', error);
+    
+    const errorText = new TextDisplayBuilder()
+      .setContent(`**Unexpected Error**\n\nAn unexpected error occurred while changing your profile pony. Please try again.\n\nIf this issue continues, please report it to the support team.`);
+    
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(errorText);
+    
     await interaction.editReply({
-      embeds: [createEmbed({
-        title: '❌ Unexpected Error',
-        description: 'An unexpected error occurred while changing your profile pony. Please try again.\n\nIf this issue continues, please report it to the support team.',
-        color: 0x03168f,
-        user: interaction.user
-      })]
+      components: [errorContainer],
+      flags: MessageFlags.IsComponentsV2
     });
   }
 }

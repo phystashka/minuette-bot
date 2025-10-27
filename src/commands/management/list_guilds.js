@@ -11,6 +11,10 @@ export const data = new SlashCommandBuilder()
       .setDescription('Page number to display (default: 1)')
       .setRequired(false)
       .setMinValue(1))
+  .addStringOption(option =>
+    option.setName('guild_id')
+      .setDescription('Specific guild ID to find and display')
+      .setRequired(false))
   .setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 
 
@@ -20,6 +24,7 @@ export const guildId = '1415332959728304170';
 export async function execute(interaction) {
   try {
     const page = interaction.options.getInteger('page') || 1;
+    const searchGuildId = interaction.options.getString('guild_id');
     
 
     const authorizedUserId = '259347882052812800';
@@ -43,6 +48,42 @@ export async function execute(interaction) {
       return interaction.reply({ embeds: [embed], ephemeral: true });
     }
 
+    if (searchGuildId) {
+      const foundGuild = guilds.get(searchGuildId);
+      
+      if (!foundGuild) {
+        const embed = errorEmbed(`Guild with ID \`${searchGuildId}\` not found or bot is not in that guild.`, 'Guild Not Found');
+        return interaction.reply({ embeds: [embed], ephemeral: true });
+      }
+
+      const embed = new EmbedBuilder()
+        .setTitle('🎯 Specific Guild Found')
+        .setDescription(`Found guild: **${foundGuild.name}**`)
+        .setColor(config.colors.success || 0x00FF00)
+        .setTimestamp()
+        .setFooter({ 
+          text: 'Specific guild search result',
+          iconURL: interaction.client.user.displayAvatarURL()
+        });
+
+      const guildDetails = `**Name:** ${foundGuild.name}\n` +
+                          `**ID:** \`${foundGuild.id}\`\n` +
+                          `**Members:** ${foundGuild.memberCount || 'Unknown'}\n` +
+                          `**Owner:** <@${foundGuild.ownerId}>\n` +
+                          `**Joined:** <t:${Math.floor(foundGuild.joinedTimestamp / 1000)}:R>\n` +
+                          `**Created:** <t:${Math.floor(foundGuild.createdTimestamp / 1000)}:R>`;
+
+      embed.addFields([
+        {
+          name: 'Guild Details',
+          value: guildDetails,
+          inline: false
+        }
+      ]);
+
+      return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
 
     const guildsPerPage = 5;
     const totalPages = Math.ceil(totalGuilds / guildsPerPage);
@@ -61,7 +102,7 @@ export async function execute(interaction) {
 
     const embed = new EmbedBuilder()
       .setTitle('📋 Bot Guild List')
-      .setDescription(`Showing guilds ${startIndex + 1}-${Math.min(endIndex, totalGuilds)} of ${totalGuilds}`)
+      .setDescription(`Showing guilds ${startIndex + 1}-${Math.min(endIndex, totalGuilds)} of ${totalGuilds}\n\n💡 **Tip:** Use \`guild_id\` parameter to search for a specific guild`)
       .setColor(config.colors.info || 0x7CC9F9)
       .setTimestamp()
       .setFooter({ 

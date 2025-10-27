@@ -11,6 +11,8 @@ export class QuestBatchUpdater {
   }
 
   static addToQueue(userId, clanId, questType, increment = 1) {
+    console.log(`📦 Adding to quest queue: userId=${userId}, clanId=${clanId}, questType=${questType}, increment=${increment}`);
+    
     const key = `${userId}_${clanId}_${questType}`;
     
     if (questUpdateQueue.has(key)) {
@@ -24,27 +26,42 @@ export class QuestBatchUpdater {
         questType
       });
     }
+    
+    console.log(`📊 Queue size: ${questUpdateQueue.size}`);
   }
 
   static async processBatch() {
-    if (questUpdateQueue.size === 0) return;
+    if (questUpdateQueue.size === 0) {
+      console.log('📦 Quest batch processor: queue is empty');
+      return;
+    }
+    
+    console.log(`📦 Processing quest batch: ${questUpdateQueue.size} items in queue`);
 
     const currentTime = Date.now();
     const toProcess = [];
     
 
     for (const [key, data] of questUpdateQueue.entries()) {
-      if (currentTime - data.lastUpdate >= BATCH_INTERVAL || data.count >= MAX_BATCH_SIZE) {
+      const timeElapsed = currentTime - data.lastUpdate;
+      console.log(`⏱️ Quest ${key}: ${timeElapsed}ms elapsed (need ${BATCH_INTERVAL}ms)`);
+      
+      if (timeElapsed >= BATCH_INTERVAL || data.count >= MAX_BATCH_SIZE) {
         toProcess.push({ key, data });
       }
     }
 
+    console.log(`📊 Items to process: ${toProcess.length}`);
 
     for (const { key, data } of toProcess) {
       try {
+        console.log(`🎯 Processing quest update: ${key} (count: ${data.count})`);
+        
         const ClanQuestModel = (await import('../models/ClanQuestModel.js')).default;
         await ClanQuestModel.updateQuestProgress(data.userId, data.clanId, data.questType, data.count, botClient);
         questUpdateQueue.delete(key);
+        
+        console.log(`✅ Successfully processed quest update: ${key}`);
       } catch (error) {
         console.error('Error processing quest batch update:', error);
 
@@ -62,7 +79,7 @@ export class QuestBatchUpdater {
 
 
 export function addMessageQuestProgress(userId, clanId) {
-  QuestBatchUpdater.addToQueue(userId, clanId, 'messages', 1);
+  QuestBatchUpdater.addToQueue(userId, clanId, 'send_messages', 1);
 }
 
 export function addReactionQuestProgress(userId, clanId) {

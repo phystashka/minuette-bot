@@ -2,7 +2,12 @@ import {
   SlashCommandBuilder, 
   ActionRowBuilder, 
   ButtonBuilder, 
-  ButtonStyle
+  ButtonStyle,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  MessageFlags
 } from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { formatVoiceTime } from '../../utils/timeUtils.js';
@@ -10,6 +15,58 @@ import { sequelize } from '../../utils/database.js';
 import { t } from '../../utils/localization.js';
 import { leaderboardCache } from '../../utils/leaderboardCache.js';
 import { getDonatorEmoji } from '../../models/DonatorModel.js';
+
+function createLeaderboardContainer(title, description, leaderboardText, currentPage, totalPages, filter, userRank) {
+  const container = new ContainerBuilder();
+  
+  const titleDisplay = new TextDisplayBuilder()
+    .setContent(`**${title}**`);
+  container.addTextDisplayComponents(titleDisplay);
+
+  if (description) {
+    const descDisplay = new TextDisplayBuilder()
+      .setContent(description);
+    container.addTextDisplayComponents(descDisplay);
+  }
+
+  if (totalPages > 1) {
+    const pageDisplay = new TextDisplayBuilder()
+      .setContent(`-# Page ${currentPage} of ${totalPages}`);
+    container.addTextDisplayComponents(pageDisplay);
+  }
+  
+  const separator = new SeparatorBuilder();
+  container.addSeparatorComponents(separator);
+  
+  const leaderboardDisplay = new TextDisplayBuilder()
+    .setContent(leaderboardText);
+  container.addTextDisplayComponents(leaderboardDisplay);
+
+  if (userRank && userRank.rank) {
+    const separator2 = new SeparatorBuilder();
+    container.addSeparatorComponents(separator2);
+    
+    const userRankText = new TextDisplayBuilder()
+      .setContent(`-# Your Position: #${userRank.rank} ${userRank.formattedValue ? `• ${userRank.formattedValue}` : ''}`);
+    container.addTextDisplayComponents(userRankText);
+  }
+  
+  return container;
+}
+
+function createErrorContainer(title, description) {
+  const container = new ContainerBuilder();
+  
+  const titleDisplay = new TextDisplayBuilder()
+    .setContent(`**❌ ${title}**`);
+  container.addTextDisplayComponents(titleDisplay);
+  
+  const descDisplay = new TextDisplayBuilder()
+    .setContent(description);
+  container.addTextDisplayComponents(descDisplay);
+  
+  return container;
+}
 
 export const data = new SlashCommandBuilder()
   .setName('leaders')
@@ -76,16 +133,11 @@ export async function execute(interaction) {
       
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
-      const errorEmbed = createEmbed({
-        title: '❌ Error',
-        description: 'Failed to load leaderboard data. Please try again later.',
-        color: 0xff0000,
-        user: interaction.user
-      });
+      const errorContainer = createErrorContainer('Error', 'Failed to load leaderboard data. Please try again later.');
       
       return await interaction[replyMethod]({ 
-        embeds: [errorEmbed], 
-        components: []
+        flags: MessageFlags.IsComponentsV2,
+        components: [errorContainer]
       });
     }
     
@@ -117,30 +169,25 @@ export async function execute(interaction) {
         description = 'Top players by rebirth level globally';
         break;
       case 'clans':
-        title = '🏰 Clans Global Stats';
+        title = 'Clans Global Stats';
         description = 'Top clans by level globally';
         break;
     }
     
     if (totalCount === 0) {
-      let description;
+      let noDataDesc;
       if (filter === 'clans') {
-        description = "No clans have been created yet!";
+        noDataDesc = "No clans have been created yet!";
       } else {
-        description = await t('leaders.no_data', guildId);
+        noDataDesc = await t('leaders.no_data', guildId);
       }
       
-      const responseEmbed = createEmbed({
-        title: title,
-        description: description,
-        color: 0x03168f,
-        user: interaction.user
-      });
+      const noDataContainer = createErrorContainer('No Data', noDataDesc);
       
       if (!interaction.replied && !interaction.deferred) {
         return await interaction[replyMethod]({ 
-          embeds: [responseEmbed], 
-          components: []
+          flags: MessageFlags.IsComponentsV2,
+          components: [noDataContainer]
         });
       }
       return;
@@ -149,16 +196,11 @@ export async function execute(interaction) {
     const totalPages = Math.ceil(totalCount / perPage);
     
     if (page > totalPages) {
-      const responseEmbed = createEmbed({
-        title: 'Invalid Page',
-        description: `There are only ${totalPages} pages available!\n\nChoose a page between 1 and ${totalPages}.`,
-        color: 0x03168f,
-        user: interaction.user
-      });
+      const invalidPageContainer = createErrorContainer('Invalid Page', `There are only ${totalPages} pages available!\n\nChoose a page between 1 and ${totalPages}.`);
       
       return await interaction[replyMethod]({ 
-        embeds: [responseEmbed], 
-        components: []
+        flags: MessageFlags.IsComponentsV2,
+        components: [invalidPageContainer]
       });
     }
 
@@ -323,24 +365,23 @@ export async function execute(interaction) {
       }
     }
     
-    let userPositionText = '';
+    let userRankInfo = null;
     if (userRank && userRank > 0 && userValue) {
-      const positionText = await t('leaders.position', guildId);
-      userPositionText = `${positionText}: #${userRank} - ${userValue}`;
-    } else {
-      if (filter === 'clans') {
-        userPositionText = "You haven't created or joined a clan yet!";
-      } else {
-        userPositionText = await t('leaders.no_data', guildId);
-      }
+      userRankInfo = {
+        rank: userRank,
+        formattedValue: userValue
+      };
     }
-    
-    const embed = createEmbed({
-      title: title,
-      description: `${leaderboardText}\n${userPositionText}\n\n${await t('leaders.page_info', guildId, { current: page, total: totalPages })}`,
-      color: 0x03168f,
-      user: interaction.user
-    });
+
+    const container = createLeaderboardContainer(
+      title,
+      description,
+      leaderboardText,
+      page,
+      totalPages,
+      filter,
+      userRankInfo
+    );
 
     const filterRow = new ActionRowBuilder()
       .addComponents(
@@ -377,27 +418,31 @@ export async function execute(interaction) {
 
     const components = [filterRow, filterRow2];
 
+
+
+    container.addActionRowComponents(filterRow, filterRow2);
+    
     if (totalPages > 1) {
       const navigationRow = new ActionRowBuilder()
         .addComponents(
           new ButtonBuilder()
             .setCustomId(`leaders_prev_${filter}_${page}`)
-            .setLabel(await t('leaders.previous', guildId))
+            .setEmoji('<:previous:1422550660401860738>')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(page <= 1),
           new ButtonBuilder()
             .setCustomId(`leaders_next_${filter}_${page}`)
-            .setLabel(await t('leaders.next', guildId))
+            .setEmoji('<:next:1422550658846031953>')
             .setStyle(ButtonStyle.Secondary)
             .setDisabled(page >= totalPages)
         );
       
-      components.push(navigationRow);
+      container.addActionRowComponents(navigationRow);
     }
 
     return await interaction[replyMethod]({ 
-      embeds: [embed], 
-      components: components
+      flags: MessageFlags.IsComponentsV2,
+      components: [container]
     });
 
   } catch (error) {

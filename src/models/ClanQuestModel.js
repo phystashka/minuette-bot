@@ -89,6 +89,9 @@ export default class ClanQuestModel {
 
           await query('UPDATE clans SET experience = experience + ? WHERE id = ?', [quest.experience_reward, clanId]);
           
+          const { addClanMapExperience } = await import('./ClanMapModel.js');
+          await addClanMapExperience(clanId, quest.experience_reward);
+          
 
           if (client) {
             try {

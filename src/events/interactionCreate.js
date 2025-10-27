@@ -1,4 +1,4 @@
-import { ButtonBuilder, ButtonStyle, ActionRowBuilder, EmbedBuilder, AttachmentBuilder, MessageFlags } from 'discord.js';
+import { ButtonBuilder, ButtonStyle, ActionRowBuilder, EmbedBuilder, AttachmentBuilder, MessageFlags, ContainerBuilder, TextDisplayBuilder, MediaGalleryBuilder, MediaGalleryItemBuilder } from 'discord.js';
 import { canUseTesting } from '../utils/permissions.js';
 
 const CACHE_EXPIRY = 5 * 60 * 1000;
@@ -20,13 +20,13 @@ setInterval(cleanupCache, 10 * 60 * 1000);
 import { errorEmbed } from '../utils/components.js';
 import { errors } from '../utils/validators.js';
 import { logCommand } from '../utils/logger.js';
-import { checkCooldown, setCooldown, createCooldownEmbed } from '../utils/cooldownManager.js';
+import { checkCooldown, setCooldown, createCooldownContainer } from '../utils/cooldownManager.js';
 import { getMarriageByUser, deleteMarriage } from '../models/MarriageModel.js';
 import { getChildrenByParents, getAdoptionByChild, deleteAdoption, getFamilyByMember } from '../models/AdoptionModel.js';
 import { handleDerpiPagination } from '../utils/derpi/index.js';
 import { handleCaseButton } from '../commands/economy/case.js';
 import { handleInventoryInteraction } from '../commands/economy/inventory.js';
-import { handleBundlePreview, handleBundlePurchase } from '../commands/economy/donate_shop.js';
+import { handleBundlePreview, handleBundlePurchase, handleElementsOfInsanityButton, handleElementsOfInsanityPurchase, handleBackToShop } from '../commands/premium/premium_shop.js';
 import { requirePony } from '../utils/pony/index.js';
 import { 
   addBits, 
@@ -50,7 +50,7 @@ import {
 export const name = 'interactionCreate';
 export const once = false;
 
-const economyCommands = ['venture', 'resources', 'friendship', 'zecora_hut', 'crime', 'balance', 'protection', 'leaders', 'farm', 'knock', 'adopt', 'battle', 'case', 'decorate', 'feed', 'inventory', 'myponies', 'profile', 'timely', 'trade', 'transfer_bits', 'bug', 'donate', 'pony_alerts', 'set_spawn', 'remove_spawn', 'clan', 'clan_invite', 'clan_emblem', 'clan_vice', 'clan_viceremove', 'artifacts'];
+const economyCommands = ['adventure', 'resources', 'friendship', 'zecora_hut', 'crime', 'balance', 'protection', 'leaders', 'farm', 'knock', 'adopt', 'battle', 'case', 'decorate', 'feed', 'inventory', 'myponies', 'profile', 'timely', 'trade', 'transfer_bits', 'bug', 'donate', 'pony_alerts', 'set_spawn', 'remove_spawn', 'clan', 'clan_invite', 'clan_emblem', 'clan_vice', 'clan_viceremove', 'artifacts'];
 
 export const execute = async (interaction) => {
   if (interaction.isChatInputCommand()) {
@@ -73,9 +73,10 @@ export const execute = async (interaction) => {
     const cooldownCheck = checkCooldown(interaction.user.id, interaction.commandName);
     
     if (!cooldownCheck.canUse) {
-      const cooldownEmbed = await createCooldownEmbed(cooldownCheck.timeLeft);
+      const cooldownContainer = createCooldownContainer(cooldownCheck.timeLeft);
       return interaction.reply({
-        embeds: [cooldownEmbed],
+        components: [cooldownContainer],
+        flags: MessageFlags.IsComponentsV2,
         ephemeral: true
       });
     }
@@ -357,6 +358,88 @@ Purchase at least two collections to support the bot and unlock exclusive featur
         return;
       }
       
+      if (customId.startsWith('mane6quiz_')) {
+        const { handleButtonInteraction } = await import('../commands/utility/mane6quiz.js');
+        await handleButtonInteraction(interaction);
+        return;
+      }
+      
+      if (customId.startsWith('market_')) {
+        const { handleButtonInteraction } = await import('../commands/economy/market.js');
+        await handleButtonInteraction(interaction);
+        return;
+      }
+      
+      if (customId.startsWith('rps_')) {
+        const { handleButtonInteraction } = await import('../commands/utility/game_rps.js');
+        await handleButtonInteraction(interaction);
+        return;
+      }
+      
+      if (customId.startsWith('ttt_')) {
+        const { handleButtonInteraction } = await import('../commands/utility/game_tictactoe.js');
+        await handleButtonInteraction(interaction);
+        return;
+      }
+
+      if (customId.startsWith('connect4_')) {
+        const connect4Command = await import('../commands/utility/game_connect4.js');
+        await connect4Command.default.handleButton(interaction);
+        return;
+      }
+
+      if (customId.startsWith('casino_disclaimer_')) {
+        const container = new ContainerBuilder();
+        
+        const titleText = new TextDisplayBuilder()
+          .setContent('**Our Stance on Gambling**');
+        container.addTextDisplayComponents(titleText);
+        
+        const mainText = new TextDisplayBuilder()
+          .setContent('It is important to remember that gambling is not a way to make money, real or fake. It is a form of entertainment and should be treated as such. If you or someone you know is struggling with gambling addiction, please seek help.\n\nAdditionally, please remember that the odds are always in favor of the house. The house always wins.');
+        container.addTextDisplayComponents(mainText);
+        
+        const additionalText = new TextDisplayBuilder()
+          .setContent('**Remember:** This casino feature uses virtual currency (bits/chips) and is for entertainment purposes only. This bot does not promote real money gambling.');
+        container.addTextDisplayComponents(additionalText);
+        
+        await interaction.reply({
+          components: [container],
+          flags: MessageFlags.IsComponentsV2,
+          ephemeral: true
+        });
+        return;
+      }
+
+      if (customId.startsWith('casino_slots_')) {
+        const { handleButtonInteraction } = await import('../commands/economy/casino_slots.js');
+        await handleButtonInteraction(interaction);
+        return;
+      }
+
+      if (customId.startsWith('casino_dice_')) {
+        const casinoDice = await import('../commands/economy/casino_dice.js');
+        await casinoDice.default.handleButton(interaction);
+        return;
+      }
+
+      if (customId.startsWith('connect4_move_')) {
+        const connect4 = await import('../commands/utility/connect4.js');
+        await connect4.default.handleButton(interaction);
+        return;
+      }
+
+      if (customId.startsWith('casino_coinflip_')) {
+        const { handleButtonInteraction } = await import('../commands/economy/casino_coinflip.js');
+        await handleButtonInteraction(interaction);
+        return;
+      }
+
+      if (customId.startsWith('ignite_spark_')) {
+        const { handleButtonInteraction } = await import('../commands/economy/ignite_spark.js');
+        await handleButtonInteraction(interaction);
+        return;
+      }
 
       if (customId.startsWith('game_left_') || customId.startsWith('game_right_')) {
         const { handleGameMove } = await import('../commands/economy/farm.js');
@@ -382,6 +465,11 @@ Purchase at least two collections to support the bot and unlock exclusive featur
         return;
       }
 
+      if (customId.startsWith('buy_card_')) {
+        const { handleButton } = await import('../commands/economy/card_shop.js');
+        await handleButton(interaction);
+        return;
+      }
 
       if (customId.startsWith('milk_move_')) {
         const { handleMilkMove } = await import('../commands/economy/farm.js');
@@ -400,7 +488,7 @@ Purchase at least two collections to support the bot and unlock exclusive featur
       
 
       if (customId.startsWith('toggle_notification_')) {
-        const { handleNotificationButton } = await import('../commands/economy/venture.js');
+        const { handleNotificationButton } = await import('../commands/economy/adventure.js');
         const handled = await handleNotificationButton(interaction);
         if (handled) return;
       }
@@ -568,6 +656,7 @@ Purchase at least two collections to support the bot and unlock exclusive featur
         if (messageOwnerId && messageOwnerId !== interaction.user.id) {
           const { createAccessErrorContainer } = await import('../commands/economy/myponies.js');
           const container = createAccessErrorContainer(
+            'Access Denied',
             'This is not your ponies list!'
           );
           
@@ -676,6 +765,18 @@ Purchase at least two collections to support the bot and unlock exclusive featur
       
       if (customId.startsWith('bundle_purchase_')) {
         return await handleBundlePurchase(interaction);
+      }
+      
+      if (customId === 'elements_of_insanity_button') {
+        return await handleElementsOfInsanityButton(interaction);
+      }
+      
+      if (customId.startsWith('purchase_elements_of_insanity_')) {
+        return await handleElementsOfInsanityPurchase(interaction);
+      }
+      
+      if (customId.startsWith('back_to_shop_')) {
+        return await handleBackToShop(interaction);
       }
       
 
@@ -1199,85 +1300,7 @@ Purchase at least two collections to support the bot and unlock exclusive featur
         return;
       }
 
-      if (customId === 'casino_info_select') {
-        try {
-          const selected = values[0];
-          let embed;
-          
-          switch (selected) {
-            case 'general':
-              embed = createEmbed({
-                title: '🏛️ Canterlot Casino',
-                description: 'Welcome to the Canterlot Casino! Here you can try your luck and win big... or lose everything!',
-                color: 0x9B59B6,
-                fields: [
-                  {
-                    name: 'Available Games',
-                    value: '🎰 Slot Machine - Match symbols to win\n🎲 Roulette - Bet on numbers or colors',
-                    inline: false
-                  },
-                  {
-                    name: 'Betting Limits',
-                    value: 'Minimum bet: 100 bits\nMaximum bet: 10,000 bits',
-                    inline: false
-                  }
-                ],
-                footer: { text: 'Remember to gamble responsibly! The house always wins in the long run.' }
-              });
-              break;
-              
-            case 'slots':
-              embed = createEmbed({
-                title: '🎰 Slot Machine',
-                description: 'Try your luck with the slot machine! Match three symbols to win big.',
-                color: 0x9B59B6,
-                fields: [
-                  {
-                    name: 'Payouts',
-                    value: '🍒🍒🍒: 3x\n🍋🍋🍋: 5x\n🍊🍊🍊: 8x\n🍇🍇🍇: 10x\n🍉🍉🍉: 15x\n💎💎💎: 25x\n7️⃣7️⃣7️⃣: 50x\n🤑🤑🤑: 100x\nAny two matching symbols: 1.5x',
-                    inline: true
-                  },
-                  {
-                    name: 'How to Play',
-                    value: 'Use `/casino slots` and place your bet. The slot machine will generate three random symbols. If you match at least two, you win!',
-                    inline: true
-                  }
-                ]
-              });
-              break;
-              
-            case 'roulette':
-              embed = createEmbed({
-                title: '🎲 Roulette',
-                description: 'Place your bets on the roulette wheel! Choose from various betting options with different odds.',
-                color: 0x9B59B6,
-                fields: [
-                  {
-                    name: 'Payouts',
-                    value: 'Red/Black: 2x\nEven/Odd: 2x\nHigh/Low: 2x\nDozens: 3x\nColumns: 3x\nSingle Number: 36x\nGreen (0): 14x',
-                    inline: true
-                  },
-                  {
-                    name: 'How to Play',
-                    value: 'Use `/casino roulette` and select your bet type, number (if applicable), and bet amount. The wheel will spin and determine if you win!',
-                    inline: true
-                  }
-                ]
-              });
-              break;
-          }
-          
-          await interaction.update({
-            embeds: [embed],
-            components: [interaction.message.components[0]]
-          });
-          
-          return;
-        } catch (error) {
-          console.error('Error handling casino info select menu:', error);
-          return;
-        }
-      }
+
     } catch (error) {
       console.error(`Error handling select menu interaction: ${error.message}`);
       console.error(`Stack trace:`, error.stack);
@@ -1616,7 +1639,7 @@ Purchase at least two collections to support the bot and unlock exclusive featur
 
       /*
       if (customId.startsWith('guess_pony_')) {
-        const { handleModal } = await import('../commands/economy/venture.js');
+        const { handleModal } = await import('../commands/economy/adventure.js');
         if (handleModal) {
           await handleModal(interaction);
           return;
@@ -1638,22 +1661,28 @@ Purchase at least two collections to support the bot and unlock exclusive featur
 
 async function handleFamilyButton(interaction) {
   try {
+    const loadingContainer = new ContainerBuilder();
+    const loadingText = new TextDisplayBuilder()
+      .setContent('<a:loading_line:1416130253428097135> **Loading family profile...**');
+    loadingContainer.addTextDisplayComponents(loadingText);
 
     await interaction.update({
-      content: '<a:loading_line:1416130253428097135> Loading family profile...',
-      embeds: [],
-      components: [],
-      files: []
+      components: [loadingContainer],
+      flags: MessageFlags.IsComponentsV2
     });
     
     const userId = interaction.customId.split('_')[1];
     
 
     if (interaction.user.id !== userId) {
+      const errorContainer = new ContainerBuilder();
+      const errorText = new TextDisplayBuilder()
+        .setContent('**❌ Access Denied**\n\nYou can only view your own family!');
+      errorContainer.addTextDisplayComponents(errorText);
+      
       return interaction.editReply({
-        content: 'You can only view your own family!',
-        embeds: [],
-        components: []
+        components: [errorContainer],
+        flags: MessageFlags.IsComponentsV2
       });
     }
 
@@ -1675,10 +1704,14 @@ async function handleFamilyButton(interaction) {
     console.log('Family data:', { marriage: !!marriage, adoptionAsChild: !!adoptionAsChild, adoptedChildren: adoptedChildren.length });
 
     if (!marriage && !adoptionAsChild && adoptedChildren.length === 0) {
+      const noFamilyContainer = new ContainerBuilder();
+      const noFamilyText = new TextDisplayBuilder()
+        .setContent('**👥 No Family Members**\n\nYou don\'t have any family members yet! You can get married or adopt ponies to build your family.');
+      noFamilyContainer.addTextDisplayComponents(noFamilyText);
+      
       return interaction.editReply({
-        content: 'You don\'t have any family members!',
-        embeds: [],
-        components: []
+        components: [noFamilyContainer],
+        flags: MessageFlags.IsComponentsV2
       });
     }
 
@@ -1778,7 +1811,7 @@ async function handleFamilyButton(interaction) {
     const familyCanvas = await generateFamilyProfile(interaction.user, marriageData, adoptionData);
     
     const familyBuffer = familyCanvas.toBuffer('image/png');
-    const familyAttachment = new AttachmentBuilder(familyBuffer, { name: 'loveprofile.png' });
+    const familyAttachment = new AttachmentBuilder(familyBuffer, { name: 'family.png' });
 
 
     const buttons = [];
@@ -1816,19 +1849,36 @@ async function handleFamilyButton(interaction) {
 
     const components = buttons.length > 0 ? [new ActionRowBuilder().addComponents(buttons)] : [];
 
+    const familyContainer = new ContainerBuilder();
+    
+    const familyMedia = new MediaGalleryBuilder()
+      .addItems(
+        new MediaGalleryItemBuilder()
+          .setURL('attachment://family.png')
+      );
+    familyContainer.addMediaGalleryComponents(familyMedia);
+    
+    if (components.length > 0) {
+      familyContainer.addActionRowComponents(...components);
+    }
+
     await interaction.editReply({
-      content: '',
-      embeds: [],
+      components: [familyContainer],
       files: [familyAttachment],
-      components: components
+      flags: MessageFlags.IsComponentsV2
     });
 
   } catch (error) {
     console.error('Error in handleFamilyButton:', error);
+    
+    const errorContainer = new ContainerBuilder();
+    const errorText = new TextDisplayBuilder()
+      .setContent('**❌ Error Loading Family**\n\nAn error occurred while loading your family. Please try again later.');
+    errorContainer.addTextDisplayComponents(errorText);
+    
     await interaction.editReply({
-      content: 'An error occurred while loading your family.',
-      embeds: [],
-      components: []
+      components: [errorContainer],
+      flags: MessageFlags.IsComponentsV2
     });
   }
 }
@@ -1844,17 +1894,15 @@ async function handleFamilyAction(interaction) {
 
       const children = await getChildrenByParents(interaction.user.id, partnerId);
       if (children && children.length > 0) {
-        const embed = createEmbed({
-          title: '❌ Cannot Divorce',
-          description: 'You cannot divorce while you have adopted children. Please abandon the adoption first.',
-          color: 0x03168f,
-          thumbnail: interaction.user.displayAvatarURL()
-        });
+        const errorText = new TextDisplayBuilder()
+          .setContent('**❌ Cannot Divorce**\n\nYou cannot divorce while you have adopted children. Please abandon the adoption first.');
+        
+        const errorContainer = new ContainerBuilder()
+          .addTextDisplayComponents(errorText);
         
         return interaction.update({
-          content: '',
-          embeds: [embed],
-          components: [],
+          components: [errorContainer],
+          flags: MessageFlags.IsComponentsV2,
           files: []
         });
       }
@@ -1862,17 +1910,15 @@ async function handleFamilyAction(interaction) {
 
       await deleteMarriage(interaction.user.id, partnerId);
 
-      const embed = createEmbed({
-        title: '💔 Divorced',
-        description: 'You have divorced. Your marriage has been ended.',
-        color: 0x03168f,
-        thumbnail: interaction.user.displayAvatarURL()
-      });
+      const successText = new TextDisplayBuilder()
+        .setContent('**💔 Divorced**\n\nYou have divorced. Your marriage has been ended.');
+      
+      const successContainer = new ContainerBuilder()
+        .addTextDisplayComponents(successText);
 
       await interaction.update({
-        content: '',
-        embeds: [embed],
-        components: [],
+        components: [successContainer],
+        flags: MessageFlags.IsComponentsV2,
         files: []
       });
 
@@ -1882,10 +1928,15 @@ async function handleFamilyAction(interaction) {
 
       const marriage = await getMarriageByUser(interaction.user.id);
       if (!marriage) {
+        const errorText = new TextDisplayBuilder()
+          .setContent('**❌ Error**\n\nMarriage not found.');
+        
+        const errorContainer = new ContainerBuilder()
+          .addTextDisplayComponents(errorText);
+        
         return interaction.update({
-          content: 'Error: Marriage not found.',
-          embeds: [],
-          components: [],
+          components: [errorContainer],
+          flags: MessageFlags.IsComponentsV2,
           files: []
         });
       }
@@ -1893,17 +1944,15 @@ async function handleFamilyAction(interaction) {
 
       await deleteAdoption(interaction.user.id, marriage.partner_id, childId);
 
-      const embed = createEmbed({
-        title: '✅ Adoption Abandoned',
-        description: 'You have abandoned the adoption. The child is no longer part of your family.',
-        color: 0x03168f,
-        thumbnail: interaction.user.displayAvatarURL()
-      });
+      const successText = new TextDisplayBuilder()
+        .setContent('**✅ Adoption Abandoned**\n\nYou have abandoned the adoption. The child is no longer part of your family.');
+      
+      const successContainer = new ContainerBuilder()
+        .addTextDisplayComponents(successText);
 
       await interaction.update({
-        content: '',
-        embeds: [embed],
-        components: [],
+        components: [successContainer],
+        flags: MessageFlags.IsComponentsV2,
         files: []
       });
 
@@ -1915,27 +1964,31 @@ async function handleFamilyAction(interaction) {
 
       await deleteAdoption(parent1Id, parent2Id, interaction.user.id);
 
-      const embed = createEmbed({
-        title: '✅ Left Family',
-        description: 'You have left your family. You are no longer their adopted child.',
-        color: 0x03168f,
-        thumbnail: interaction.user.displayAvatarURL()
-      });
+      const successText = new TextDisplayBuilder()
+        .setContent('**✅ Left Family**\n\nYou have left your family. You are no longer their adopted child.');
+      
+      const successContainer = new ContainerBuilder()
+        .addTextDisplayComponents(successText);
 
       await interaction.update({
-        content: '',
-        embeds: [embed],
-        components: [],
+        components: [successContainer],
+        flags: MessageFlags.IsComponentsV2,
         files: []
       });
     }
 
   } catch (error) {
     console.error('Error in handleFamilyAction:', error);
+    
+    const errorText = new TextDisplayBuilder()
+      .setContent('**❌ Error**\n\nAn error occurred while processing your family action.');
+    
+    const errorContainer = new ContainerBuilder()
+      .addTextDisplayComponents(errorText);
+    
     await interaction.update({
-      content: 'An error occurred while processing your family action.',
-      embeds: [],
-      components: [],
+      components: [errorContainer],
+      flags: MessageFlags.IsComponentsV2,
       files: []
     });
   }
@@ -2088,36 +2141,13 @@ async function handleClanInviteButtons(interaction) {
 
 
       const TARGET_GUILD_ID = '1369338076178026596';
-      const isInTargetGuild = await isUserInTargetGuild(interaction.client, userId, TARGET_GUILD_ID);
-      if (!isInTargetGuild) {
-        return await interaction.update({
-          embeds: [createEmbed({
-            title: '❌ Server Access Required',
-            description: 'You must be a member of the target server to join a clan!',
-            color: 0xFF0000
-          })],
-          components: []
-        });
-      }
+      
+      
 
 
       await addClanMember(parseInt(clanId), userId, 'member');
       
 
-      if (clan.clan_role_id && clan.guild_id) {
-        try {
-          const guild = interaction.client.guilds.cache.get(clan.guild_id);
-          if (guild) {
-            const member = guild.members.cache.get(userId);
-            if (member) {
-              await member.roles.add(clan.clan_role_id);
-            }
-          }
-        } catch (roleError) {
-          console.error('Error adding clan role to member:', roleError);
-
-        }
-      }
       
 
       await updateMemberCount(parseInt(clanId), clan.member_count + 1);

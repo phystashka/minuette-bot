@@ -68,7 +68,7 @@ const STORE_SKUS = {
     diamonds: 150,
     description: 'Premium purchase - 150 gems'
   },
-  '1429147263833211040': {
+  '1430190539944493177': {
     name: 'Test Purchase',
     diamonds: 1,
     description: 'Test item - 1 diamond'

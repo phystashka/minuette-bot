@@ -115,3 +115,214 @@ export const logCommandDeploy = async (client, commandCount) => {
   
   await logChannel.send({ embeds: [embed] });
 }; 
+
+class DiscordLogger {
+  constructor() {
+    this.client = null;
+    this.logsChannelId = '1431672815677083661';
+    this.errorsChannelId = '1431672896664899724';
+    this.originalConsole = {
+      log: console.log,
+      error: console.error,
+      warn: console.warn,
+      info: console.info
+    };
+    this.logQueue = [];
+    this.errorQueue = [];
+    this.isReady = false;
+    this.isSetup = false;
+  }
+
+  setClient(client) {
+    this.client = client;
+    
+    if (client.isReady()) {
+      this.isReady = true;
+      this.processQueues();
+    } else {
+      client.once('ready', () => {
+        this.isReady = true;
+        this.processQueues();
+      });
+    }
+  }
+
+  async processQueues() {
+    if (this.logQueue.length > 0) {
+      for (const log of this.logQueue) {
+        await this.sendToChannel(this.logsChannelId, log.content, log.type, log.timestamp);
+      }
+      this.logQueue = [];
+    }
+
+    if (this.errorQueue.length > 0) {
+      for (const error of this.errorQueue) {
+        await this.sendToChannel(this.errorsChannelId, error.content, error.type, error.timestamp);
+      }
+      this.errorQueue = [];
+    }
+  }
+
+  async sendToChannel(channelId, content, type = 'log', timestamp = new Date()) {
+    if (!this.client || !this.isReady) {
+      return;
+    }
+
+    try {
+      const channel = await this.client.channels.fetch(channelId);
+      if (!channel) return;
+
+      let color;
+      let emoji;
+      switch (type) {
+        case 'error':
+          color = 0xFF0000;
+          emoji = '❌';
+          break;
+        case 'warn':
+          color = 0xFFA500;
+          emoji = '⚠️';
+          break;
+        case 'info':
+          color = 0x0099FF;
+          emoji = 'ℹ️';
+          break;
+        default:
+          color = 0x00FF00;
+          emoji = '📝';
+      }
+
+      let description = String(content);
+      if (description.length > 4000) {
+        description = description.substring(0, 3900) + '\n...\n*[Message truncated]*';
+      }
+
+      const embed = new EmbedBuilder()
+        .setColor(color)
+        .setTitle(`${emoji} ${type.toUpperCase()}`)
+        .setDescription(`\`\`\`${description}\`\`\``)
+        .setTimestamp(timestamp)
+        .setFooter({ text: 'Bot Console Logger' });
+
+      await channel.send({ embeds: [embed] });
+    } catch (error) {
+      this.originalConsole.error('Discord Logger Error:', error);
+    }
+  }
+
+  formatLogMessage(...args) {
+    return args.map(arg => {
+      if (typeof arg === 'object') {
+        try {
+          return JSON.stringify(arg, null, 2);
+        } catch {
+          return String(arg);
+        }
+      }
+      return String(arg);
+    }).join(' ');
+  }
+
+  setupConsoleOverride() {
+    if (this.isSetup) return;
+    this.isSetup = true;
+
+    console.log = (...args) => {
+      const message = this.formatLogMessage(...args);
+      this.originalConsole.log(...args);
+      
+      if (message.includes('Shard') || message.includes('Gateway') || message.includes('WebSocket')) {
+        return;
+      }
+      
+      if (this.isReady) {
+        this.sendToChannel(this.logsChannelId, message, 'log');
+      } else {
+        this.logQueue.push({ content: message, type: 'log', timestamp: new Date() });
+      }
+    };
+
+    console.error = (...args) => {
+      const message = this.formatLogMessage(...args);
+      this.originalConsole.error(...args);
+      
+      if (this.isReady) {
+        this.sendToChannel(this.errorsChannelId, message, 'error');
+      } else {
+        this.errorQueue.push({ content: message, type: 'error', timestamp: new Date() });
+      }
+    };
+
+    console.warn = (...args) => {
+      const message = this.formatLogMessage(...args);
+      this.originalConsole.warn(...args);
+      
+      if (this.isReady) {
+        this.sendToChannel(this.errorsChannelId, message, 'warn');
+      } else {
+        this.errorQueue.push({ content: message, type: 'warn', timestamp: new Date() });
+      }
+    };
+
+    console.info = (...args) => {
+      const message = this.formatLogMessage(...args);
+      this.originalConsole.info(...args);
+      
+      if (this.isReady) {
+        this.sendToChannel(this.logsChannelId, message, 'info');
+      } else {
+        this.logQueue.push({ content: message, type: 'info', timestamp: new Date() });
+      }
+    };
+  }
+
+  setupErrorHandlers() {
+    process.on('uncaughtException', (error) => {
+      const message = `Uncaught Exception: ${error.message}\n${error.stack}`;
+      this.originalConsole.error('Uncaught Exception:', error);
+      
+      if (this.isReady) {
+        this.sendToChannel(this.errorsChannelId, message, 'error');
+      } else {
+        this.errorQueue.push({ content: message, type: 'error', timestamp: new Date() });
+      }
+    });
+
+    process.on('unhandledRejection', (reason, promise) => {
+      const message = `Unhandled Rejection at: ${promise}\nReason: ${reason}`;
+      this.originalConsole.error('Unhandled Rejection:', reason);
+      
+      if (this.isReady) {
+        this.sendToChannel(this.errorsChannelId, message, 'error');
+      } else {
+        this.errorQueue.push({ content: message, type: 'error', timestamp: new Date() });
+      }
+    });
+  }
+
+  init(client) {
+    this.setClient(client);
+    this.setupConsoleOverride();
+    this.setupErrorHandlers();
+    
+    this.originalConsole.info('Discord Global Logger initialized successfully');
+  }
+
+  async logToChannel(message, type = 'log') {
+    if (this.isReady) {
+      await this.sendToChannel(this.logsChannelId, message, type);
+    } else {
+      this.logQueue.push({ content: message, type, timestamp: new Date() });
+    }
+  }
+
+  async errorToChannel(message, type = 'error') {
+    if (this.isReady) {
+      await this.sendToChannel(this.errorsChannelId, message, type);
+    } else {
+      this.errorQueue.push({ content: message, type, timestamp: new Date() });
+    }
+  }
+}
+
+export const globalLogger = new DiscordLogger();

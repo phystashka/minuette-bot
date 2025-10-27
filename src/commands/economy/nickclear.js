@@ -1,7 +1,7 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { getUserPonyByUniqueId, clearCustomNickname } from '../../models/FriendshipModel.js';
-import { checkCooldown, setCooldown, createCooldownEmbed } from '../../utils/cooldownManager.js';
+import { checkCooldown, setCooldown, createCooldownContainer } from '../../utils/cooldownManager.js';
 import { isDonator } from '../../models/DonatorModel.js';
 
 export const data = new SlashCommandBuilder()
@@ -36,7 +36,8 @@ export async function execute(interaction) {
   const cooldownResult = checkCooldown(userId, 'nickname', 30000);
   if (!cooldownResult.canUse) {
     return interaction.reply({
-      embeds: [createCooldownEmbed(cooldownResult.timeLeft)],
+      components: [createCooldownContainer(cooldownResult.timeLeft)],
+      flags: MessageFlags.IsComponentsV2,
       ephemeral: true
     });
   }

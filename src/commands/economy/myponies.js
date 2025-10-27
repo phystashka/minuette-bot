@@ -22,15 +22,28 @@ const PAGE_SIZE = 15;
 
 export const userPonyData = new Map();
 
-export function createAccessErrorContainer(title, description) {
+function createLoadingContainer() {
   const container = new ContainerBuilder();
   
+  const loadingText = new TextDisplayBuilder()
+    .setContent('<a:loading_line:1416130253428097135> **Loading your ponies...**');
+  container.addTextDisplayComponents(loadingText);
+  
+  return container;
+}
+
+export function createAccessErrorContainer(title, description) {
+  const container = new ContainerBuilder();
+
+  const titleStr = String(title || 'Error');
+  const descStr = String(description || 'An error occurred');
+  
   const titleText = new TextDisplayBuilder()
-    .setContent(`**${title}**`);
+    .setContent(`**${titleStr}**`);
   container.addTextDisplayComponents(titleText);
   
   const descText = new TextDisplayBuilder()
-    .setContent(description);
+    .setContent(descStr);
   container.addTextDisplayComponents(descText);
   
   return container;
@@ -47,7 +60,8 @@ const RARITY_EMOJIS = {
   SECRET: '<:S6:1410901772180131840><:E6:1410901770695081984><:C6:1410901769067692114><:R6:1410901767629307995><:E61:1410901765854990396><:T6:1410901764164816898>',
   EVENT: '<:E2:1417857423829500004><:V1:1417857422420217897><:E1:1417857420029595691><:N1:1417857418804854834><:T1:1417857417391378432>',
   UNIQUE: '<:U2:1418945904546938910><:N2:1418945902470631484><:I1:1418945900570480690><:Q1:1418945898679107614><:U2:1418945904546938910><:E3:1418945906115346452>',
-  EXCLUSIVE: '<:E1:1425524316858224822><:X2:1425524310570696815><:C3:1425524308997963857><:L4:1425524306833834185><:U5:1425524304845475840><:S6:1425524303470002319><:I7:1425524323002876015><:V8:1425524320985153586><:E9:1425524318732812461>'
+  EXCLUSIVE: '<:E1:1425524316858224822><:X2:1425524310570696815><:C3:1425524308997963857><:L4:1425524306833834185><:U5:1425524304845475840><:S6:1425524303470002319><:I7:1425524323002876015><:V8:1425524320985153586><:E9:1425524318732812461>',
+  ADMIN: '<:a_:1430153532287488071><:d_:1430153530018238575><:m_:1430153528143380500><:I_:1430153535961694278><:N1:1430153534212407376>'
 };
 
 
@@ -61,7 +75,8 @@ const RARITY_COLORS = {
   SECRET: 0x34495E,
   EVENT: 0xFF6B35,
   UNIQUE: 0xFFD700,
-  EXCLUSIVE: 0xFF69B4
+  EXCLUSIVE: 0xFF69B4,
+  ADMIN: 0x800080
 };
 
 
@@ -463,28 +478,56 @@ export async function execute(interaction) {
         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral
       });
     }
-    
-    await showPonyListPage(interaction, userId, 1, filter, searchQuery, sortBy, favoritesOnly);
+
+    const loadingContainer = createLoadingContainer();
+    await interaction.reply({
+      components: [loadingContainer],
+      flags: MessageFlags.IsComponentsV2
+    });
+
+    await showPonyListPage(interaction, userId, 1, filter, searchQuery, sortBy, favoritesOnly, true);
     
   } catch (error) {
     console.error('Error in myponies command:', error);
     
-    return interaction.reply({
-      embeds: [
-        createEmbed({
-          title: '❌ Error',
-          description: 'An error occurred while fetching your ponies.',
-          color: 0xFF0000
-        })
-      ],
-      ephemeral: true
-    });
+    if (!interaction || !interaction.isRepliable()) {
+      console.error('Cannot send error response - interaction invalid');
+      return;
+    }
+    
+    try {
+      const errorEmbed = createEmbed({
+        title: '❌ Error',
+        description: 'An error occurred while fetching your ponies.',
+        color: 0xFF0000
+      });
+      
+      if (interaction.replied || interaction.deferred) {
+        return interaction.editReply({
+          embeds: [errorEmbed],
+          components: [],
+          flags: MessageFlags.Ephemeral
+        });
+      } else {
+        return interaction.reply({
+          embeds: [errorEmbed],
+          ephemeral: true
+        });
+      }
+    } catch (replyError) {
+      console.error('Failed to send error message:', replyError);
+    }
   }
 }
 
 
-export async function showPonyListPage(interaction, userId, page, rarityFilter, searchQuery = '', sortBy = 'id', favoritesOnly = false) {
+export async function showPonyListPage(interaction, userId, page, rarityFilter, searchQuery = '', sortBy = 'id', favoritesOnly = false, isInitialLoad = false) {
   try {
+    if (!interaction || interaction.isRepliable === false) {
+      console.error('Invalid interaction in showPonyListPage');
+      return;
+    }
+    
     let friends = await getUserFriends(userId, favoritesOnly);
 
     if (rarityFilter !== 'all') {
@@ -573,8 +616,13 @@ export async function showPonyListPage(interaction, userId, page, rarityFilter, 
     components.forEach(row => {
       container.addActionRowComponents(row);
     });
-    
-    if (interaction.deferred || interaction.replied) {
+
+    if (!interaction.isRepliable()) {
+      console.error('Interaction is no longer repliable');
+      return;
+    }
+
+    if (isInitialLoad || interaction.deferred || interaction.replied) {
       await interaction.editReply({
         components: [container],
         flags: MessageFlags.IsComponentsV2
@@ -588,6 +636,12 @@ export async function showPonyListPage(interaction, userId, page, rarityFilter, 
     
   } catch (error) {
     console.error('Error in showPonyListPage:', error);
+
+    if (!interaction || !interaction.isRepliable()) {
+      console.error('Cannot send error response - interaction invalid');
+      return;
+    }
+    
     const errorMessage = {
       embeds: [
         createEmbed({
@@ -599,10 +653,14 @@ export async function showPonyListPage(interaction, userId, page, rarityFilter, 
       components: []
     };
     
-    if (interaction.deferred || interaction.replied) {
-      await interaction.editReply(errorMessage);
-    } else {
-      await interaction.reply(errorMessage);
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply(errorMessage);
+      } else {
+        await interaction.reply(errorMessage);
+      }
+    } catch (replyError) {
+      console.error('Failed to send error message:', replyError);
     }
   }
 }

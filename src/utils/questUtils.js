@@ -32,8 +32,15 @@ export async function getUserClanId(userId) {
 
 export async function addQuestProgress(userId, questType, increment = 1) {
   try {
+    console.log(`🎯 Adding quest progress: userId=${userId}, questType=${questType}, increment=${increment}`);
+    
     const clanId = await getUserClanId(userId);
-    if (!clanId) return;
+    console.log(`🏰 User clan ID: ${clanId}`);
+    
+    if (!clanId) {
+      console.log(`❌ User ${userId} is not in a clan, skipping quest progress`);
+      return;
+    }
     
     const {
       addBitsEarnedProgress,
@@ -43,7 +50,8 @@ export async function addQuestProgress(userId, questType, increment = 1) {
       addTicTacToeWinProgress,
       addRPSWinProgress,
       addFeedPonyProgress,
-      addOpenCaseProgress
+      addOpenCaseProgress,
+      addMessageQuestProgress
     } = await import('./questBatchUpdater.js');
     
     switch (questType) {
@@ -70,6 +78,9 @@ export async function addQuestProgress(userId, questType, increment = 1) {
         break;
       case 'open_cases':
         addOpenCaseProgress(userId, clanId);
+        break;
+      case 'send_messages':
+        addMessageQuestProgress(userId, clanId);
         break;
     }
   } catch (error) {

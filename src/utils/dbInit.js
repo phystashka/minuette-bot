@@ -15,11 +15,15 @@ import { createUserStatsTable } from '../models/UserStatsModel.js';
 import { createBloodMoonTable } from '../models/BloodMoonModel.js';
 import { initDonatorTables } from '../models/DonatorModel.js';
 import { createClansTable } from '../models/ClanModel.js';
+import { createClanMapTable } from '../models/ClanMapModel.js';
+import { initializeClanSeasonTables } from '../models/ClanSeasonModel.js';
 import { createBreedingTable } from '../commands/economy/breed.js';
 import { updatePonyFriendsTableStructure } from '../models/FriendshipModel.js';
 import { createPerformanceIndexes } from './performanceOptimizer.js';
 import { createVoteTable } from '../models/VoteModel.js';
 import { createBingoTable } from '../models/BingoModel.js';
+import { initCardsTable } from '../models/CardModel.js';
+import { initializeCardTables } from '../models/CardsModel.js';
 
 
 
@@ -70,12 +74,22 @@ export const setupDatabase = async () => {
     await createClansTable();
     
 
+    await createClanMapTable();
+    
+    
+    await initializeClanSeasonTables();
+    
+
     await createBreedingTable();
     
 
     await createVoteTable();
     
     await createBingoTable();
+    
+    await initCardsTable();
+    
+    await initializeCardTables();
     
     await createArtifactsTables();
     

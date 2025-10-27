@@ -1,3 +1,5 @@
+import { ContainerBuilder, TextDisplayBuilder, MessageFlags } from 'discord.js';
+
 const userCooldowns = new Map();
 
 
@@ -40,16 +42,16 @@ export function setCooldown(userId, commandName) {
 }
 
 
-export async function createCooldownEmbed(timeLeft) {
-  const { createEmbed } = await import('./components.js');
-  
+export function createCooldownContainer(timeLeft) {
   const secondsLeft = Math.ceil(timeLeft / 1000);
   
-  return createEmbed({
-    title: '⏰ Wait a bit!',
-    description: `Please wait **${secondsLeft} seconds** before using the next command.`,
-    color: 0x03168f
-  });
+  const cooldownText = new TextDisplayBuilder()
+    .setContent(`**⏰ Wait a bit!**\n\nPlease wait **${secondsLeft} seconds** before using the next command.`);
+  
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(cooldownText);
+  
+  return container;
 }
 
 
@@ -82,7 +84,7 @@ setInterval(cleanupCooldowns, 30 * 60 * 1000);
 export default {
   checkCooldown,
   setCooldown,
-  createCooldownEmbed,
+  createCooldownContainer,
   cleanupCooldowns,
   DEFAULT_COOLDOWN
 };

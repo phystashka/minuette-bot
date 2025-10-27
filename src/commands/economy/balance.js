@@ -10,12 +10,40 @@ import {
   SeparatorSpacingSize
 } from 'discord.js';
 import { getPonyByUserId, depositToBank, withdrawFromBank } from '../../models/PonyModel.js';
-import { getDiamonds } from '../../models/ResourceModel.js';
+import { getDiamonds, getResourcesByUserId } from '../../models/ResourceModel.js';
 import { getHarmony } from '../../models/HarmonyModel.js';
 import { createEmbed } from '../../utils/components.js';
 import { t } from '../../utils/localization.js';
 
-const createBankWithAmountSelection = async (pony, user, guildId, diamonds, harmony, action) => {
+const protectedBitsStore = new Map();
+const PROTECTION_DURATION = 5 * 60 * 1000;
+
+export function setProtectedBits(userId, amount) {
+  const expiresAt = Date.now() + PROTECTION_DURATION;
+  protectedBitsStore.set(userId, { amount, expiresAt });
+  
+  setTimeout(() => {
+    protectedBitsStore.delete(userId);
+  }, PROTECTION_DURATION);
+}
+
+export function getProtectedBits(userId) {
+  const protection = protectedBitsStore.get(userId);
+  if (!protection) return 0;
+  
+  if (Date.now() > protection.expiresAt) {
+    protectedBitsStore.delete(userId);
+    return 0;
+  }
+  
+  return protection.amount;
+}
+
+export function hasProtectedBits(userId) {
+  return getProtectedBits(userId) > 0;
+}
+
+const createBankWithAmountSelection = async (pony, user, guildId, diamonds, harmony, resources, action) => {
   const headerText = new TextDisplayBuilder()
     .setContent(`**${user.username}'s Balance**\n-# Your financial overview and currency status`);
 
@@ -24,7 +52,7 @@ const createBankWithAmountSelection = async (pony, user, guildId, diamonds, harm
     .setSpacing(SeparatorSpacingSize.Small);
 
   const balanceContent = new TextDisplayBuilder()
-    .setContent(`<:bits:1429131029628588153> **Cash:** \`${pony.bits.toLocaleString()} bits\`\n<:bits:1429131029628588153> **Bank:** \`${(pony.bank_balance || 0).toLocaleString()} bits\`\n<a:diamond:1423629073984524298> **Diamonds:** \`${diamonds.toLocaleString()} diamonds\`\n<:harmony:1416514347789844541> **Harmony:** \`${harmony.toLocaleString()} harmony\``);
+    .setContent(`<:bits:1429131029628588153> **Cash:** \`${pony.bits.toLocaleString()} bits\`\n<:bits:1429131029628588153> **Bank:** \`${(pony.bank_balance || 0).toLocaleString()} bits\`\n<a:diamond:1423629073984524298> **Diamonds:** \`${diamonds.toLocaleString()} diamonds\`\n<:harmony:1416514347789844541> **Harmony:** \`${harmony.toLocaleString()} harmony\`\n<:magic_coin:1431797469666217985> **Magic Coins:** \`${(resources?.magic_coins || 0).toLocaleString()} magic coins\``);
 
   const instructionText = new TextDisplayBuilder()
     .setContent(action === 'deposit' 
@@ -102,7 +130,7 @@ const createBankWithAmountSelection = async (pony, user, guildId, diamonds, harm
   return container;
 };
 
-const createBankComponentsV2 = async (pony, user, guildId, diamonds, harmony) => {
+const createBankComponentsV2 = async (pony, user, guildId, diamonds, harmony, resources) => {
   const headerText = new TextDisplayBuilder()
     .setContent(`**${user.username}'s Balance**\n-# Your financial overview and currency status`);
 
@@ -111,7 +139,7 @@ const createBankComponentsV2 = async (pony, user, guildId, diamonds, harmony) =>
     .setSpacing(SeparatorSpacingSize.Small);
 
   const balanceContent = new TextDisplayBuilder()
-    .setContent(`<:bits:1429131029628588153> **Cash:** \`${pony.bits.toLocaleString()} bits\`\n<:bits:1429131029628588153> **Bank:** \`${(pony.bank_balance || 0).toLocaleString()} bits\`\n<a:diamond:1423629073984524298> **Diamonds:** \`${diamonds.toLocaleString()} diamonds\`\n<:harmony:1416514347789844541> **Harmony:** \`${harmony.toLocaleString()} harmony\``);
+    .setContent(`<:bits:1429131029628588153> **Cash:** \`${pony.bits.toLocaleString()} bits\`\n<:bits:1429131029628588153> **Bank:** \`${(pony.bank_balance || 0).toLocaleString()} bits\`\n<a:diamond:1423629073984524298> **Diamonds:** \`${diamonds.toLocaleString()} diamonds\`\n<:harmony:1416514347789844541> **Harmony:** \`${harmony.toLocaleString()} harmony\`\n<:magic_coin:1431797469666217985> **Magic Coins:** \`${(resources?.magic_coins || 0).toLocaleString()} magic coins\``);
 
   const depositButton = new ButtonBuilder()
     .setCustomId('bank_deposit')
@@ -160,7 +188,7 @@ export async function execute(interaction) {
     
     if (!pony) {
       const noPonyText = new TextDisplayBuilder()
-        .setContent('You need to create a pony first! Use `/venture` to get started.');
+        .setContent('You need to create a pony first! Use `/equestria` to get started.');
       
       const noPonyContainer = new ContainerBuilder()
         .addTextDisplayComponents(noPonyText);
@@ -173,9 +201,10 @@ export async function execute(interaction) {
 
     const diamonds = await getDiamonds(interaction.user.id);
     const harmony = await getHarmony(interaction.user.id);
+    const resources = await getResourcesByUserId(interaction.user.id);
 
     console.log('[BANK-CMD] Found pony:', pony);
-    const container = await createBankComponentsV2(pony, interaction.user, guildId, diamonds, harmony);
+    const container = await createBankComponentsV2(pony, interaction.user, guildId, diamonds, harmony, resources);
 
     await interaction.reply({
       flags: MessageFlags.IsComponentsV2,
@@ -239,7 +268,7 @@ export async function handleButton(interaction) {
       console.log('[BANK-BTN] Pony not found');
       
       const ponyNotFoundText = new TextDisplayBuilder()
-        .setContent('You need to create a pony first! Use `/venture` to get started.');
+        .setContent('You need to create a pony first! Use `/equestria` to get started.');
       
       const ponyNotFoundContainer = new ContainerBuilder()
         .addTextDisplayComponents(ponyNotFoundText);
@@ -260,8 +289,9 @@ export async function handleButton(interaction) {
 
         const diamonds = await getDiamonds(interaction.user.id);
         const harmony = await getHarmony(interaction.user.id);
+        const resources = await getResourcesByUserId(interaction.user.id);
         
-        const container = await createBankWithAmountSelection(pony, interaction.user, guildId, diamonds, harmony, action);
+        const container = await createBankWithAmountSelection(pony, interaction.user, guildId, diamonds, harmony, resources, action);
 
         await interaction.update({
           flags: MessageFlags.IsComponentsV2,
@@ -291,7 +321,8 @@ export async function handleButton(interaction) {
           
           const diamonds = await getDiamonds(interaction.user.id);
           const harmony = await getHarmony(interaction.user.id);
-          const container = await createBankComponentsV2(pony, interaction.user, guildId, diamonds, harmony);
+          const resources = await getResourcesByUserId(interaction.user.id);
+          const container = await createBankComponentsV2(pony, interaction.user, guildId, diamonds, harmony, resources);
           
           await interaction.update({
             flags: MessageFlags.IsComponentsV2,
@@ -337,6 +368,11 @@ export async function handleButton(interaction) {
         } else {
           await withdrawFromBank(interaction.user.id, amountToMove);
           console.log('[BANK-BTN] Withdrew', amountToMove, 'bits');
+          
+          const updatedPony = await getPonyByUserId(interaction.user.id);
+          const totalCashBits = updatedPony.bits;
+          setProtectedBits(interaction.user.id, totalCashBits);
+          console.log('[BANK-BTN] Protected', totalCashBits, 'bits from theft for 5 minutes');
         }
 
         const updatedPony = await getPonyByUserId(interaction.user.id);
@@ -344,8 +380,9 @@ export async function handleButton(interaction) {
 
         const diamonds = await getDiamonds(interaction.user.id);
         const harmony = await getHarmony(interaction.user.id);
+        const resources = await getResourcesByUserId(interaction.user.id);
 
-        const container = await createBankComponentsV2(updatedPony, interaction.user, guildId, diamonds, harmony);
+        const container = await createBankComponentsV2(updatedPony, interaction.user, guildId, diamonds, harmony, resources);
         
         const successText = new TextDisplayBuilder()
           .setContent(isDeposit
@@ -386,7 +423,8 @@ export async function handleButton(interaction) {
           
           const diamonds = await getDiamonds(interaction.user.id);
           const harmony = await getHarmony(interaction.user.id);
-          const container = await createBankComponentsV2(pony, interaction.user, guildId, diamonds, harmony);
+          const resources = await getResourcesByUserId(interaction.user.id);
+          const container = await createBankComponentsV2(pony, interaction.user, guildId, diamonds, harmony, resources);
           
           return await interaction.update({
             flags: MessageFlags.IsComponentsV2,
@@ -423,13 +461,21 @@ export async function handleButton(interaction) {
           });
         }
 
+        if (!isDeposit) {
+          const updatedPony = await getPonyByUserId(interaction.user.id);
+          const totalCashBits = updatedPony.bits;
+          setProtectedBits(interaction.user.id, totalCashBits);
+          console.log('[BANK-BTN] Protected', totalCashBits, 'bits from theft for 5 minutes');
+        }
+
         const updatedPony = await getPonyByUserId(interaction.user.id);
         console.log('[BANK-BTN] After transaction - Cash:', updatedPony.bits, 'Bank:', updatedPony.bank_balance || 0);
 
         const diamonds = await getDiamonds(interaction.user.id);
         const harmony = await getHarmony(interaction.user.id);
+        const resources = await getResourcesByUserId(interaction.user.id);
 
-        const container = await createBankComponentsV2(updatedPony, interaction.user, guildId, diamonds, harmony);
+        const container = await createBankComponentsV2(updatedPony, interaction.user, guildId, diamonds, harmony, resources);
         
         const successText = new TextDisplayBuilder()
           .setContent(isDeposit

@@ -25,6 +25,8 @@ export const createResourcesTable = async () => {
       forest_herbs INTEGER NOT NULL DEFAULT 0,
       bone_dust INTEGER NOT NULL DEFAULT 0,
       moonstone_shard INTEGER NOT NULL DEFAULT 0,
+      chips INTEGER NOT NULL DEFAULT 0,
+      magic_coins INTEGER NOT NULL DEFAULT 0,
       active_battle_potion INTEGER NOT NULL DEFAULT 0,
       battle_potion_expires INTEGER NOT NULL DEFAULT 0,
       active_resource_potion INTEGER NOT NULL DEFAULT 0,
@@ -127,6 +129,24 @@ export const createResourcesTable = async () => {
       console.log('Added diamonds column to resources table');
     }
     
+    const hasChipsColumn = columns.some(col => col.name === 'chips');
+    if (!hasChipsColumn) {
+      await query(`ALTER TABLE resources ADD COLUMN chips INTEGER NOT NULL DEFAULT 0`);
+      console.log('Added chips column to resources table');
+    }
+    
+    const hasSparksColumn = columns.some(col => col.name === 'sparks');
+    if (!hasSparksColumn) {
+      await query(`ALTER TABLE resources ADD COLUMN sparks INTEGER NOT NULL DEFAULT 0`);
+      console.log('Added sparks column to resources table');
+    }
+    
+    const hasMagicCoinsColumn = columns.some(col => col.name === 'magic_coins');
+    if (!hasMagicCoinsColumn) {
+      await query(`ALTER TABLE resources ADD COLUMN magic_coins INTEGER NOT NULL DEFAULT 0`);
+      console.log('Added magic_coins column to resources table');
+    }
+    
 
     const potionColumns = [
       'active_battle_potion', 'battle_potion_expires',
@@ -196,7 +216,9 @@ export const createResources = async (userId) => {
       pumpkins: 0,
       candies: 0,
       pumpkin_baskets: 0,
-      keys: 0
+      keys: 0,
+      chips: 0,
+      magic_coins: 0
     });
     
     return { 
@@ -217,7 +239,9 @@ export const createResources = async (userId) => {
       pumpkins: 0,
       candies: 0,
       pumpkin_baskets: 0,
-      keys: 0
+      keys: 0,
+      chips: 0,
+      magic_coins: 0
     };
   } catch (error) {
     throw error;
@@ -231,6 +255,9 @@ export const updateResources = async (userId, data) => {
     if (data.wood !== undefined) updateData.wood = data.wood;
     if (data.stone !== undefined) updateData.stone = data.stone;
     if (data.tools !== undefined) updateData.tools = data.tools;
+    if (data.chips !== undefined) updateData.chips = data.chips;
+    if (data.sparks !== undefined) updateData.sparks = data.sparks;
+    if (data.magic_coins !== undefined) updateData.magic_coins = data.magic_coins;
     if (data.celestial_fabric !== undefined) updateData.celestial_fabric = data.celestial_fabric;
     if (data.sun_crystal !== undefined) updateData.sun_crystal = data.sun_crystal;
     if (data.royal_wax !== undefined) updateData.royal_wax = data.royal_wax;
@@ -343,6 +370,15 @@ export const addResource = async (userId, resourceType, amount) => {
       case 'diamonds':
         updateData.diamonds = (resources.diamonds || 0) + amount;
         break;
+      case 'chips':
+        updateData.chips = (resources.chips || 0) + amount;
+        break;
+      case 'magic_coins':
+        updateData.magic_coins = (resources.magic_coins || 0) + amount;
+        break;
+      case 'sparks':
+        updateData.sparks = (resources.sparks || 0) + amount;
+        break;
 
       default:
         throw new Error('Invalid resource type');
@@ -398,6 +434,12 @@ export const getResourceAmount = async (userId, resourceType) => {
         return resources.bone_dust || 0;
       case 'moonstone_shard':
         return resources.moonstone_shard || 0;
+      case 'chips':
+        return resources.chips || 0;
+      case 'magic_coins':
+        return resources.magic_coins || 0;
+      case 'sparks':
+        return resources.sparks || 0;
 
       default:
         throw new Error('Invalid resource type');
@@ -519,6 +561,24 @@ export const removeResource = async (userId, resourceType, amount) => {
           throw new Error('Not enough moonstone shard');
         }
         updateData.moonstone_shard = (resources.moonstone_shard || 0) - amount;
+        break;
+      case 'chips':
+        if ((resources.chips || 0) < amount) {
+          throw new Error('Not enough chips');
+        }
+        updateData.chips = (resources.chips || 0) - amount;
+        break;
+      case 'magic_coins':
+        if ((resources.magic_coins || 0) < amount) {
+          throw new Error('Not enough magic coins');
+        }
+        updateData.magic_coins = (resources.magic_coins || 0) - amount;
+        break;
+      case 'sparks':
+        if ((resources.sparks || 0) < amount) {
+          throw new Error('Not enough sparks');
+        }
+        updateData.sparks = (resources.sparks || 0) - amount;
         break;
 
       default:

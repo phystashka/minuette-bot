@@ -9,6 +9,7 @@ import { cleanupMissingEmblems } from './utils/emblemCleanup.js';
 import { startMessageCacheProcessor } from './utils/messageCacheManager.js';
 import { QuestBatchUpdater } from './utils/questBatchUpdater.js';
 import { clearAllTempImages } from './utils/ponyImageCache.js';
+import { globalLogger } from './utils/logger.js';
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
@@ -82,6 +83,10 @@ const init = async () => {
     }
     
     await client.login(config.token);
+    console.log(chalk.green('OK'));
+
+    process.stdout.write(chalk.blue('[INIT] ') + 'Setting up Discord logger... ');
+    globalLogger.init(client);
     console.log(chalk.green('OK'));
 
     process.stdout.write(chalk.blue('[INIT] ') + 'Cleaning up missing emblems... ');

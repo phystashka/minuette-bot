@@ -93,6 +93,18 @@ export const data = new SlashCommandBuilder()
     option.setName('diamonds')
       .setDescription('Diamonds amount (premium currency)')
       .setRequired(false))
+  .addIntegerOption(option =>
+    option.setName('chips')
+      .setDescription('Chips amount (casino currency)')
+      .setRequired(false))
+  .addIntegerOption(option =>
+    option.setName('magic_coins')
+      .setDescription('Magic Coins amount (card shop currency)')
+      .setRequired(false))
+  .addIntegerOption(option =>
+    option.setName('sparks')
+      .setDescription('Sparks amount (card pack currency)')
+      .setRequired(false))
   .addStringOption(option =>
     option.setName('reason')
       .setDescription('Reason for the compensation')
@@ -140,7 +152,10 @@ export async function execute(interaction) {
       forest_herbs: interaction.options.getInteger('forest_herbs'),
       bone_dust: interaction.options.getInteger('bone_dust'),
       moonstone_shard: interaction.options.getInteger('moonstone_shard'),
-      diamonds: interaction.options.getInteger('diamonds')
+      diamonds: interaction.options.getInteger('diamonds'),
+      chips: interaction.options.getInteger('chips'),
+      magic_coins: interaction.options.getInteger('magic_coins'),
+      sparks: interaction.options.getInteger('sparks')
     };
 
 
@@ -456,6 +471,54 @@ export async function execute(interaction) {
             dmMessages.push(`- ${resources.moonstone_shard} 🌙 Moonstone Shards`);
           } else {
             results.push(`❌ Failed to remove ${resources.moonstone_shard} moonstone shards (insufficient moonstone shards)`);
+          }
+        }
+      }
+
+      if (resources.chips) {
+        if (action === 'add') {
+          await addResource(targetUser.id, 'chips', resources.chips);
+          results.push(`✅ Added ${resources.chips} chips`);
+          dmMessages.push(`+ ${resources.chips} <:chips:1431269385405993010> Chips`);
+        } else {
+          const removed = await removeResource(targetUser.id, 'chips', resources.chips);
+          if (removed) {
+            results.push(`✅ Removed ${resources.chips} chips`);
+            dmMessages.push(`- ${resources.chips} <:chips:1431269385405993010> Chips`);
+          } else {
+            results.push(`❌ Failed to remove ${resources.chips} chips (insufficient chips)`);
+          }
+        }
+      }
+
+      if (resources.magic_coins) {
+        if (action === 'add') {
+          await addResource(targetUser.id, 'magic_coins', resources.magic_coins);
+          results.push(`✅ Added ${resources.magic_coins} magic coins`);
+          dmMessages.push(`+ ${resources.magic_coins} <:magic_coin:1431797469666217985> Magic Coins`);
+        } else {
+          const removed = await removeResource(targetUser.id, 'magic_coins', resources.magic_coins);
+          if (removed) {
+            results.push(`✅ Removed ${resources.magic_coins} magic coins`);
+            dmMessages.push(`- ${resources.magic_coins} <:magic_coin:1431797469666217985> Magic Coins`);
+          } else {
+            results.push(`❌ Failed to remove ${resources.magic_coins} magic coins (insufficient magic coins)`);
+          }
+        }
+      }
+
+      if (resources.sparks) {
+        if (action === 'add') {
+          await addResource(targetUser.id, 'sparks', resources.sparks);
+          results.push(`✅ Added ${resources.sparks} sparks`);
+          dmMessages.push(`+ ${resources.sparks} <:Sparkl:1431337628900528138> Sparks`);
+        } else {
+          const removed = await removeResource(targetUser.id, 'sparks', resources.sparks);
+          if (removed) {
+            results.push(`✅ Removed ${resources.sparks} sparks`);
+            dmMessages.push(`- ${resources.sparks} <:Sparkl:1431337628900528138> Sparks`);
+          } else {
+            results.push(`❌ Failed to remove ${resources.sparks} sparks (insufficient sparks)`);
           }
         }
       }

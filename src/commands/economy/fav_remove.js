@@ -1,7 +1,7 @@
 import { SlashCommandBuilder } from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { getUserPonyByUniqueId } from '../../models/FriendshipModel.js';
-import { checkCooldown, setCooldown, createCooldownEmbed } from '../../utils/cooldownManager.js';
+import { checkCooldown, setCooldown, createCooldownContainer } from '../../utils/cooldownManager.js';
 import { query } from '../../utils/database.js';
 
 export const data = new SlashCommandBuilder()

@@ -25,7 +25,7 @@ export async function execute(interaction) {
     
     const embed = createEmbed({
       title: 'Vote for Minuette Bot',
-      description: `Support us by voting on Top.gg!\n\n**Rewards for voting:**\n<a:diamond:1423629073984524298> **10 Diamonds**\n<a:goldkey:1426332679103709314> **5 Keys**\n\n**How to get rewards:**\n1. Click "Vote on Top.gg"\n2. Complete the vote\n3. Return and click "Claim Rewards"`,
+      description: `Support us by voting on Top.gg!\n\n**Rewards for voting:**\n<a:diamond:1423629073984524298> **10 Diamonds**\n<a:goldkey:1426332679103709314> **5 Keys**\n<:magic_coin:1431797469666217985> **10 Magic Coins**\n<:Sparkl:1431337628900528138> **1 Spark**\n\n**How to get rewards:**\n1. Click "Vote on Top.gg"\n2. Complete the vote\n3. Return and click "Claim Rewards"`,
       color: 0x9b59b6,
       user: interaction.user
     });
@@ -101,15 +101,19 @@ export async function handleClaimRewards(interaction) {
 
     let userResources = await getResourcesByUserId(userId);
     if (!userResources) {
-      userResources = { diamonds: 0, keys: 0 };
+      userResources = { diamonds: 0, keys: 0, magic_coins: 0, sparks: 0 };
     }
 
     const diamondsReward = 10;
     const keysReward = 5;
+    const magicCoinsReward = 10;
+    const sparksReward = 1;
     
     await updateResources(userId, {
       diamonds: (userResources.diamonds || 0) + diamondsReward,
-      keys: (userResources.keys || 0) + keysReward
+      keys: (userResources.keys || 0) + keysReward,
+      magic_coins: (userResources.magic_coins || 0) + magicCoinsReward,
+      sparks: (userResources.sparks || 0) + sparksReward
     });
     
     try {
@@ -120,7 +124,7 @@ export async function handleClaimRewards(interaction) {
     
     const successEmbed = createEmbed({
       title: 'Rewards Claimed!',
-      description: `Thank you for voting! You received:\n\n<a:diamond:1423629073984524298> **${diamondsReward} Diamonds**\n<a:goldkey:1426332679103709314> **${keysReward} Keys**\n\n*Vote again in 12 hours for more rewards!*`,
+      description: `Thank you for voting! You received:\n\n<a:diamond:1423629073984524298> **${diamondsReward} Diamonds**\n<a:goldkey:1426332679103709314> **${keysReward} Keys**\n<:magic_coin:1431797469666217985> **${magicCoinsReward} Magic Coins**\n<:Sparkl:1431337628900528138> **${sparksReward} Spark**\n\n*Vote again in 12 hours for more rewards!*`,
       color: 0x27ae60,
       user: interaction.user
     });

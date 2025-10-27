@@ -13,12 +13,85 @@ export const createClansTable = async () => {
       emblem_filename TEXT DEFAULT NULL,
       member_count INTEGER DEFAULT 1,
       level INTEGER DEFAULT 1,
+      experience INTEGER DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
   
-  return await query(sql);
+  await query(sql);
+  
+  const questTypesSQL = `
+    CREATE TABLE IF NOT EXISTS clan_quest_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      type TEXT NOT NULL,
+      target_value INTEGER NOT NULL,
+      experience_reward INTEGER NOT NULL
+    )
+  `;
+  
+  await query(questTypesSQL);
+  
+  const userQuestsSQL = `
+    CREATE TABLE IF NOT EXISTS clan_user_quests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      clan_id INTEGER NOT NULL,
+      quest_type_id INTEGER NOT NULL,
+      current_progress INTEGER DEFAULT 0,
+      target_value INTEGER NOT NULL,
+      experience_reward INTEGER NOT NULL,
+      completed BOOLEAN DEFAULT FALSE,
+      completed_at TIMESTAMP NULL,
+      expires_at TIMESTAMP NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (clan_id) REFERENCES clans (id),
+      FOREIGN KEY (quest_type_id) REFERENCES clan_quest_types (id)
+    )
+  `;
+  
+  await query(userQuestsSQL);
+  
+  const membersSQL = `
+    CREATE TABLE IF NOT EXISTS clan_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id TEXT NOT NULL,
+      clan_id INTEGER NOT NULL,
+      joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, clan_id),
+      FOREIGN KEY (clan_id) REFERENCES clans (id)
+    )
+  `;
+  
+  await query(membersSQL);
+  
+  const existingTypes = await query('SELECT COUNT(*) as count FROM clan_quest_types');
+  if (existingTypes[0].count === 0) {
+    const questTypes = [
+      { name: 'Send Messages', description: 'Send messages in Discord', type: 'send_messages', target_value: 50, experience_reward: 100 },
+      { name: 'Earn Bits', description: 'Earn bits through various activities', type: 'earn_bits', target_value: 10000, experience_reward: 150 },
+      { name: 'Get Ponies', description: 'Catch or obtain new ponies', type: 'get_ponies', target_value: 3, experience_reward: 200 },
+      { name: 'Crime Success', description: 'Successfully complete crime activities', type: 'crime_success', target_value: 5, experience_reward: 120 },
+      { name: 'Trade Success', description: 'Complete successful trades', type: 'trade_success', target_value: 2, experience_reward: 180 },
+      { name: 'TicTacToe Wins', description: 'Win TicTacToe games', type: 'tictactoe_wins', target_value: 3, experience_reward: 100 },
+      { name: 'RPS Wins', description: 'Win Rock Paper Scissors games', type: 'rps_wins', target_value: 5, experience_reward: 80 },
+      { name: 'Feed Ponies', description: 'Feed your ponies', type: 'feed_ponies', target_value: 10, experience_reward: 90 },
+      { name: 'Open Cases', description: 'Open loot cases', type: 'open_cases', target_value: 3, experience_reward: 110 }
+    ];
+    
+    for (const questType of questTypes) {
+      await query(`
+        INSERT INTO clan_quest_types (name, description, type, target_value, experience_reward)
+        VALUES (?, ?, ?, ?, ?)
+      `, [questType.name, questType.description, questType.type, questType.target_value, questType.experience_reward]);
+    }
+    
+    console.log('✅ Default clan quest types inserted');
+  }
+  
+  return;
 };
 
 

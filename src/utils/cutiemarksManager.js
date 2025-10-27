@@ -131,7 +131,9 @@ export const CUTIE_MARKS = {
   'Mean Pinkie Pie': '<:MeanPinkiePie:1426914435745710311>',
   'Mean Rarity': '<:MeanRarity:1426914458797609021>',
   'Mean Applejack': '<:MeanApplejack:1426914415386693803>',
-  'Mean Fluttershy': '<:MeanFluttershy:1426914425218138142>'
+  'Mean Fluttershy': '<:MeanFluttershy:1426914425218138142>',
+
+  'Creamy Caramel': '<:CreamyCaramel:1430159406384943115>',
 };
 
 

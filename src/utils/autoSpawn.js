@@ -1,13 +1,154 @@
-import { AttachmentBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { 
+  AttachmentBuilder, 
+  EmbedBuilder, 
+  ActionRowBuilder, 
+  ButtonBuilder, 
+  ButtonStyle, 
+  MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder
+} from 'discord.js';
 import { createEmbed } from './components.js';
 import * as SpawnChannelModel from '../models/SpawnChannelModel.js';
 import { getAllActiveSpawnChannels, resetChannelAfterSpawn } from '../models/SpawnChannelModel.js';
 import { getPonyFriendsByRarity, addFriend } from '../models/FriendshipModel.js';
 import { createVenturePonyImage } from './backgroundRenderer.js';
 import { t } from './localization.js';
+import fs from 'fs';
 import { addBits, getPony } from '../utils/pony/index.js';
 import { addCases, addResource } from '../models/ResourceModel.js';
 import { addHarmony } from '../models/HarmonyModel.js';
+import { getImageInfo } from './imageResolver.js';
+
+function processPonyImage(pony) {
+  const imageInfo = getImageInfo(pony.image);
+  if (imageInfo && imageInfo.type === 'attachment') {
+    pony.originalImagePath = pony.image;
+    pony.imageType = 'file';
+    pony.imageFilePath = imageInfo.attachmentPath;
+    pony.imageFileName = imageInfo.filename;
+  } else if (imageInfo && imageInfo.type === 'url') {
+    pony.imageType = 'url';
+  } else {
+    pony.imageType = 'none';
+  }
+  return pony;
+}
+
+function getImageAttachment(imagePath) {
+  const imageInfo = getImageInfo(imagePath);
+  if (imageInfo && imageInfo.type === 'attachment') {
+    try {
+      const stats = fs.statSync(imageInfo.attachmentPath);
+      
+      const maxSize = 25 * 1024 * 1024;
+      
+      if (stats.size > maxSize) {
+        console.warn(`❌ Image file too large: ${stats.size} bytes (max: ${maxSize}). Path: ${imageInfo.attachmentPath}`);
+        return null;
+      }
+      
+      return {
+        path: imageInfo.attachmentPath,
+        filename: imageInfo.filename
+      };
+    } catch (error) {
+      console.error(`❌ Error accessing image file: ${imageInfo.attachmentPath}`, error);
+      return null;
+    }
+  }
+  return null;
+}
+
+function getMaskedName(name, revealed = []) {
+  return name.split('').map((ch, idx) => {
+    if (ch === ' ') return '   ';
+    if (revealed.includes(idx)) return ch;
+    return '_';
+  }).join(' ');
+}
+
+function createSafeFilename(filename) {
+  return filename
+    .replace(/[^\w\s\-\.]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/_{2,}/g, '_')
+    .replace(/^_+|_+$/g, '');
+}
+
+async function createAutoSpawnContainer(pony, guildId, ponyName) {
+  const title = `A wild pony appeared!`;
+  
+  const headerText = new TextDisplayBuilder()
+    .setContent(`**${title}** ${RARITY_EMOJIS[pony.rarity]}${pony.is_unique ? ` Unique` : ''}\n-# A mysterious pony awaits to be caught`);
+  
+  const separator = new SeparatorBuilder()
+    .setDivider(true)
+    .setSpacing(SeparatorSpacingSize.Small);
+  
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(headerText)
+    .addSeparatorComponents(separator);
+
+  if (pony.originalImagePath) {
+    const imageInfo = getImageInfo(pony.originalImagePath);
+    if (imageInfo && imageInfo.type === 'url') {
+      const mediaGallery = new MediaGalleryBuilder()
+        .addItems(
+          new MediaGalleryItemBuilder()
+            .setURL(pony.originalImagePath)
+        );
+      container.addMediaGalleryComponents(mediaGallery);
+      container.addSeparatorComponents(separator);
+    } else if (imageInfo && imageInfo.type === 'attachment') {
+      const mediaGallery = new MediaGalleryBuilder()
+        .addItems(
+          new MediaGalleryItemBuilder()
+            .setURL(`attachment://${imageInfo.filename}`)
+        );
+      container.addMediaGalleryComponents(mediaGallery);
+      container.addSeparatorComponents(separator);
+    }
+  }
+
+  const nameArr = ponyName.split('');
+  const revealed = [];
+  
+  if (nameArr.length > 0 && nameArr[0] !== ' ') {
+    revealed.push(0);
+  }
+  
+  const lastIndex = nameArr.length - 1;
+  if (lastIndex > 0 && nameArr[lastIndex] !== ' ' && !revealed.includes(lastIndex)) {
+    revealed.push(lastIndex);
+  }
+  
+  if (nameArr.length > 6) {
+    const availableIndexes = nameArr
+      .map((ch, idx) => (ch !== ' ' && !revealed.includes(idx) ? idx : null))
+      .filter(idx => idx !== null);
+    
+    if (availableIndexes.length > 0) {
+      const randomIndex = availableIndexes[Math.floor(Math.random() * availableIndexes.length)];
+      revealed.push(randomIndex);
+    }
+  }
+
+  const maskedName = getMaskedName(ponyName, revealed);
+  
+  const encounterContent = `**Guess the pony's name to catch it!**\n\nName: \`\`\`${maskedName}\`\`\`\n\nType the pony's full name in chat to catch it before others do!`;
+  
+  const encounterText = new TextDisplayBuilder()
+    .setContent(encounterContent);
+  
+  container.addTextDisplayComponents(encounterText);
+
+  return container;
+}
 import { getUsersForPonyAlert } from '../models/PonyAlertModel.js';
 import { isBloodMoonCurrentlyActive } from '../models/BloodMoonModel.js';
 import { getUserRebirth, getPonyDuplicateMultiplier, canGetNewPony } from '../commands/economy/rebirth.js';
@@ -40,7 +181,8 @@ const RARITY_EMOJIS = {
   SECRET: '<:S6:1410901772180131840><:E6:1410901770695081984><:C6:1410901769067692114><:R6:1410901767629307995><:E61:1410901765854990396><:T6:1410901764164816898>',
   EVENT: '<:E2:1417857423829500004><:V1:1417857422420217897><:E1:1417857420029595691><:N1:1417857418804854834><:T1:1417857417391378432>',
   UNIQUE: '<:U2:1418945904546938910><:N2:1418945902470631484><:I1:1418945900570480690><:Q1:1418945898679107614><:U2:1418945904546938910><:E3:1418945906115346452>',
-  EXCLUSIVE: '<:E1:1425524316858224822><:X2:1425524310570696815><:C3:1425524308997963857><:L4:1425524306833834185><:U5:1425524304845475840><:S6:1425524303470002319><:I7:1425524323002876015><:V8:1425524320985153586><:E9:1425524318732812461>'
+  EXCLUSIVE: '<:E1:1425524316858224822><:X2:1425524310570696815><:C3:1425524308997963857><:L4:1425524306833834185><:U5:1425524304845475840><:S6:1425524303470002319><:I7:1425524323002876015><:V8:1425524320985153586><:E9:1425524318732812461>',
+  ADMIN: '<:a_:1430153532287488071><:d_:1430153530018238575><:m_:1430153528143380500><:I_:1430153535961694278><:N1:1430153534212407376>'
 };
 
 const RARITY_COLORS = {
@@ -54,6 +196,7 @@ const RARITY_COLORS = {
   EVENT: 0xFF6B35,
   UNIQUE: 0x9932CC,
   EXCLUSIVE: 0xFF69B4,
+  ADMIN: 0x800080,
   BLOOD_MOON: 0x8B0000
 };
 
@@ -183,17 +326,7 @@ async function getRandomTitle(rarity, guildId, background = null, isUnique = fal
 function fixImageUrl(url) {
   if (!url || typeof url !== 'string') return url;
 
-
-
   return url.replace(/^h+ttps:/, 'https:').replace(/^h+ttp:/, 'http:');
-}
-
-function getMaskedName(name, revealed = []) {
-  return name.split('').map((ch, idx) => {
-    if (ch === ' ') return '   ';
-    if (revealed.includes(idx)) return ch;
-    return '_';
-  }).join(' ');
 }
 
 async function selectRarity(guildId = null) {
@@ -340,8 +473,8 @@ async function generateRandomPony(guildId = null) {
         
         if (bloodPonies.length > 0) {
           const randomIndex = Math.floor(Math.random() * bloodPonies.length);
-          const pony = bloodPonies[randomIndex];
-          pony.image = fixImageUrl(pony.image);
+          let pony = bloodPonies[randomIndex];
+          pony = processPonyImage(pony);
           pony.isBloodMoon = true;
           return pony;
         }
@@ -397,14 +530,14 @@ async function generateRandomPony(guildId = null) {
         throw new Error('No ponies available for spawn');
       }
       const randomIndex = Math.floor(Math.random() * basicPonies.length);
-      const pony = basicPonies[randomIndex];
-      pony.image = fixImageUrl(pony.image);
+      let pony = basicPonies[randomIndex];
+      pony = processPonyImage(pony);
       return pony;
     }
     
     const randomIndex = Math.floor(Math.random() * poniesOfRarity.length);
-    const pony = poniesOfRarity[randomIndex];
-    pony.image = fixImageUrl(pony.image);
+    let pony = poniesOfRarity[randomIndex];
+    pony = processPonyImage(pony);
     return pony;
   } catch (error) {
     console.error('Error generating random pony:', error);
@@ -437,7 +570,7 @@ async function createPonyEmbed(pony, guild) {
     title: title,
     description: `> **Rarity:** ${RARITY_EMOJIS[pony.rarity]}\n> \`${masked}\`\n\nType the correct pony name to friend them!`,
     color: embedColor,
-    image: pony.image,
+    image: null,
     thumbnail: null,
     footer: { text: `A wild pony has appeared! • ID: ${pony.id}` }
   });
@@ -547,7 +680,7 @@ async function spawnGhost(client, guildId, channelId) {
       if (interacted) {
         return interaction.reply({
           content: "Someone has already interacted with this ghost!",
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
 
@@ -624,36 +757,37 @@ async function spawnPony(client, guildId, channelId) {
     }
     
     const pony = await generateRandomPony(guildId);
-
-
-    let ponyWithBackground = null;
-    /*
-    try {
-      ponyWithBackground = await createVenturePonyImage(pony);
-    } catch (error) {
-      console.error('Error creating pony with background:', error);
-      ponyWithBackground = null;
-    }
-    */
-
-    const { embed, ponyName } = await createPonyEmbed(pony, guild);
     
-    if (ponyWithBackground) {
-      embed.setImage(`attachment://${ponyWithBackground.name}`);
-    }
+    processPonyImage(pony);
+
+    const { ponyName } = await createPonyEmbed(pony, guild);
+    
+    const container = await createAutoSpawnContainer(pony, guildId, ponyName);
 
     const alertMentions = await getPonyAlertMentions(guild, channel, pony);
 
     const messageOptions = {
-      embeds: [embed]
+      flags: MessageFlags.IsComponentsV2,
+      components: [container]
     };
 
     if (alertMentions) {
       messageOptions.content = alertMentions;
     }
     
-    if (ponyWithBackground) {
-      messageOptions.files = [ponyWithBackground];
+    if (pony.originalImagePath) {
+      const imageAttachment = getImageAttachment(pony.originalImagePath);
+      if (imageAttachment) {
+        try {
+          const safeFilename = imageAttachment.filename;
+          const attachment = new AttachmentBuilder(imageAttachment.path, { name: safeFilename });
+          messageOptions.files = [attachment];
+        } catch (attachmentError) {
+          console.error(`❌ Error creating attachment for pony ${pony.id}:`, attachmentError);
+        }
+      } else {
+        console.warn(`❌ Could not get image attachment for pony ${pony.id}, path: ${pony.originalImagePath}`);
+      }
     }
     
     const message = await channel.send(messageOptions);
@@ -665,7 +799,6 @@ async function spawnPony(client, guildId, channelId) {
       guildId: guildId,
       pony: pony,
       ponyName: ponyName,
-      ponyWithBackground: ponyWithBackground,
       message: message, 
       timestamp: Date.now()
     });
@@ -673,7 +806,17 @@ async function spawnPony(client, guildId, channelId) {
     await checkAndHandleAutocatch(message, guildId);
 
   } catch (error) {
-    console.error(`❌ Error spawning pony in ${guild?.name || guildId}:`, error);
+    console.error(`❌ Error spawning pony in guild ${guildId}:`);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      status: error.status
+    });
+    
+    if (error.requestBody) {
+      console.error('Request body size:', JSON.stringify(error.requestBody).length);
+    }
   }
 }
 
@@ -826,7 +969,7 @@ export async function handleSpawnMessage(message) {
           description: `**${message.author.username}** successfully befriended **${spawn.pony.name}**!\nUse \`/myponies\` to view your collection!\n\n+${bitsReward} <:bits:1411354539935666197> +5 <:harmony:1416514347789844541>${resourceText}${bingoText}`,
           color: RARITY_COLORS[spawn.pony.rarity] || 0x3498db,
           user: message.author,
-          thumbnail: spawn.pony.image || null
+          thumbnail: null
         });
 
         await message.reply({ embeds: [embed] });
@@ -866,7 +1009,7 @@ export async function handleSpawnMessage(message) {
             description: `You're close to the correct answer! Here's a hint:\n\n\`\`\`${nameHint}\`\`\`\n\nTry again!`,
             color: 0xFFD700,
             user: message.author,
-            thumbnail: spawn.pony.image
+            thumbnail: null
           });
           
           await message.reply({ embeds: [hintEmbed] });
@@ -901,7 +1044,7 @@ export async function handleSpawnGuessModal(interaction) {
           user: interaction.user,
           color: 0x8A2BE2
         })],
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
     
@@ -911,7 +1054,7 @@ export async function handleSpawnGuessModal(interaction) {
 
       return await interaction.reply({
         content: 'There is no active pony spawn in this server.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
     
@@ -931,7 +1074,7 @@ export async function handleSpawnGuessModal(interaction) {
             user: interaction.user,
             color: 0xe74c3c
           })],
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
       
@@ -1014,7 +1157,16 @@ export async function handleSpawnGuessModal(interaction) {
               updatedEmbed.setImage(spawn.pony.image);
             }
             
-            const files = spawn.ponyWithBackground ? [spawn.ponyWithBackground] : [];
+            const files = [];
+            if (spawn.ponyWithBackground) {
+              files.push(spawn.ponyWithBackground);
+            }
+
+            if (spawn.pony.imageType === 'file' && spawn.pony.imageFilePath && spawn.pony.imageFileName) {
+              const { AttachmentBuilder } = await import('discord.js');
+              const ponyAttachment = new AttachmentBuilder(spawn.pony.imageFilePath, { name: spawn.pony.imageFileName });
+              files.push(ponyAttachment);
+            }
             
             await spawn.message.edit({
               embeds: [updatedEmbed],
@@ -1058,7 +1210,16 @@ export async function handleSpawnGuessModal(interaction) {
               updatedEmbed.setImage(spawn.pony.image);
             }
             
-            const files = spawn.ponyWithBackground ? [spawn.ponyWithBackground] : [];
+            const files = [];
+            if (spawn.ponyWithBackground) {
+              files.push(spawn.ponyWithBackground);
+            }
+ 
+            if (spawn.pony.imageType === 'file' && spawn.pony.imageFilePath && spawn.pony.imageFileName) {
+              const { AttachmentBuilder } = await import('discord.js');
+              const ponyAttachment = new AttachmentBuilder(spawn.pony.imageFilePath, { name: spawn.pony.imageFileName });
+              files.push(ponyAttachment);
+            }
             
             await spawn.message.edit({
               embeds: [updatedEmbed],
@@ -1085,18 +1246,18 @@ export async function handleSpawnGuessModal(interaction) {
           description: `You're close to the correct answer! Here's a hint:\n\n\`\`\`${nameHint}\`\`\`\n\nTry again!`,
           color: 0xFFD700, 
           user: interaction.user,
-          thumbnail: spawn.pony.image
+          thumbnail: null
         });
         
         await interaction.reply({
           embeds: [hintEmbed],
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       } else {
         console.log(`DEBUG Modal: Percentage ${correctPercentage}% is less than 50%, showing normal error`);
         await interaction.reply({
           content: `❌ Wrong guess! **${guessedName}** is not the correct name. Try again!`,
-          ephemeral: true
+          flags: MessageFlags.Ephemeral
         });
       }
     }
@@ -1107,7 +1268,7 @@ export async function handleSpawnGuessModal(interaction) {
     if (!interaction.replied) {
       await interaction.reply({
         content: 'An error occurred while processing your guess.',
-        ephemeral: true
+        flags: MessageFlags.Ephemeral
       });
     }
   }
@@ -1313,12 +1474,27 @@ export async function spawnTestPony(client, guildId, channelId, pony) {
     }
 
 
-    const { embed, ponyName } = await createPonyEmbed(pony, guild);
+    processPonyImage(pony);
     
+    const { ponyName } = await createPonyEmbed(pony, guild);
+    
+    const container = await createAutoSpawnContainer(pony, guildId, ponyName);
+    
+    const messageOptions = {
+      flags: MessageFlags.IsComponentsV2,
+      components: [container]
+    };
 
-    const message = await channel.send({
-      embeds: [embed]
-    });
+    if (pony.originalImagePath) {
+      const imageAttachment = getImageAttachment(pony.originalImagePath);
+      if (imageAttachment) {
+        const safeFilename = imageAttachment.filename;
+        const attachment = new AttachmentBuilder(imageAttachment.path, { name: safeFilename });
+        messageOptions.files = [attachment];
+      }
+    }
+
+    const message = await channel.send(messageOptions);
 
 
     activeSpawns.set(channelId, {
@@ -1327,7 +1503,6 @@ export async function spawnTestPony(client, guildId, channelId, pony) {
       guildId: guildId,
       pony: pony,
       ponyName: ponyName,
-      ponyWithBackground: null,
       message: message, 
       timestamp: Date.now()
     });
@@ -1535,11 +1710,11 @@ async function sendMultipleAutocatchMessage(message, spawn, catches) {
       user: catches[0].user
     });
 
-    if (spawn.pony.image) {
-      embed.setThumbnail(spawn.pony.image);
-    }
 
-    await message.channel.send({ embeds: [embed] });
+    const messageOptions = { embeds: [embed] };
+    
+
+    await message.channel.send(messageOptions);
     if (Math.random() <= 0.03) {
       const voteEmbed = createEmbed({
         title: '🗳️ Support Minuette Bot!',
@@ -1616,11 +1791,17 @@ async function handleAutocatch(message, spawn, userId) {
       user: discordUser
     });
 
-    if (spawn.pony.image) {
-      embed.setThumbnail(spawn.pony.image);
+
+    const messageOptions = { embeds: [embed] };
+    
+
+    if (spawn.pony.imageType === 'file' && spawn.pony.imageFilePath && spawn.pony.imageFileName) {
+      const { AttachmentBuilder } = await import('discord.js');
+      const ponyAttachment = new AttachmentBuilder(spawn.pony.imageFilePath, { name: spawn.pony.imageFileName });
+      messageOptions.files = [ponyAttachment];
     }
 
-    await message.channel.send({ embeds: [embed] });
+    await message.channel.send(messageOptions);
 
     if (Math.random() <= 0.03) {
       const voteEmbed = createEmbed({

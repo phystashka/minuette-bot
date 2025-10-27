@@ -28,7 +28,27 @@ import {
 import { getRaceEmoji } from '../../utils/pony/ponyUtils.js';
 import { getPony } from '../../utils/pony/index.js';
 import { t } from '../../utils/localization.js';
+import { getImageInfo } from '../../utils/imageResolver.js';
 import { hasAvailableSkins, getEquippedSkin } from '../../models/SkinModel.js';
+
+function getImageUrl(imagePath) {
+  const imageInfo = getImageInfo(imagePath);
+  if (imageInfo && imageInfo.type === 'url') {
+    return imageInfo.url; 
+  }
+  return null;
+}
+
+function getImageAttachment(imagePath) {
+  const imageInfo = getImageInfo(imagePath);
+  if (imageInfo && imageInfo.type === 'attachment') {
+    return {
+      path: imageInfo.attachmentPath,
+      filename: imageInfo.filename
+    };
+  }
+  return null;
+}
 import { sequelize } from '../../utils/database.js';
 import { getCutieMarkFromPonyObject, getCutieMarkForCollection } from '../../utils/cutiemarksManager.js';
 
@@ -208,7 +228,8 @@ const RARITY_EMOJIS = {
   SECRET: '<:S6:1410901772180131840><:E6:1410901770695081984><:C6:1410901769067692114><:R6:1410901767629307995><:E61:1410901765854990396><:T6:1410901764164816898>',
   EVENT: '<:E2:1417857423829500004><:V1:1417857422420217897><:E1:1417857420029595691><:N1:1417857418804854834><:T1:1417857417391378432>',
   UNIQUE: '<:U2:1418945904546938910><:N2:1418945902470631484><:I1:1418945900570480690><:Q1:1418945898679107614><:U2:1418945904546938910><:E3:1418945906115346452>',
-  EXCLUSIVE: '<:E1:1425524316858224822><:X2:1425524310570696815><:C3:1425524308997963857><:L4:1425524306833834185><:U5:1425524304845475840><:S6:1425524303470002319><:I7:1425524323002876015><:V8:1425524320985153586><:E9:1425524318732812461>'
+  EXCLUSIVE: '<:E1:1425524316858224822><:X2:1425524310570696815><:C3:1425524308997963857><:L4:1425524306833834185><:U5:1425524304845475840><:S6:1425524303470002319><:I7:1425524323002876015><:V8:1425524320985153586><:E9:1425524318732812461>',
+  ADMIN: '<:a_:1430153532287488071><:d_:1430153530018238575><:m_:1430153528143380500><:I_:1430153535961694278><:N1:1430153534212407376>'
 };
 
 
@@ -222,7 +243,8 @@ const RARITY_COLORS = {
   SECRET: 0x34495E,
   EVENT: 0xFF6B35,
   UNIQUE: 0xFFD700,
-  EXCLUSIVE: 0xFF69B4
+  EXCLUSIVE: 0xFF69B4,
+  ADMIN: 0x800080
 };
 
 
@@ -399,7 +421,7 @@ async function showGridPage(interaction, userId, page, filter = 'all', familyFil
         }
       }
       
-      let ponyLine = `${ownedIcon}${favoriteIcon}${clothingIcon}${displayEmoji}${RARITY_EMOJIS[pony.rarity]} ${pony.name}`;
+      let ponyLine = `${ownedIcon}${favoriteIcon}${clothingIcon}${displayEmoji}${RARITY_EMOJIS[pony.rarity] || RARITY_EMOJIS['BASIC'] || ''} ${pony.name}`;
 
       
 
@@ -933,7 +955,7 @@ async function showFriendsListPage(interaction, userId, page, onlyFavorites = fa
 
         const cutieMark = getCutieMarkFromPonyObject(friend);
         const displayEmoji = cutieMark ? `${cutieMark} ` : '';
-        friendsList += `${RARITY_EMOJIS[friend.rarity]} ${displayEmoji}${friend.name}${friend.is_unique ? ' ⭐' : ''}\n`;
+        friendsList += `${RARITY_EMOJIS[friend.rarity] || RARITY_EMOJIS['BASIC'] || ''} ${displayEmoji}${friend.name}${friend.is_unique ? ' ⭐' : ''}\n`;
       } else {
 
       }
@@ -1275,9 +1297,19 @@ async function showDetailedView(interaction, userId, friendIndex = 0, onlyFavori
     const ownedIcon = friend.is_owned ? '✅' : '❌';
     
 
-    let displayImage = friend.image;
+    let displayImage = null;
     let displayTitle = `${ownedIcon}${friend.is_favorite ? '❤️ ' : ''}${emoji} ${friend.name}${friend.is_unique ? ' ⭐' : ''}`;
     let files = [];
+    
+    const attachment = getImageAttachment(friend.image);
+    if (attachment) {
+      const safeFilename = attachment.filename;
+      displayImage = `attachment://${safeFilename}`;
+      const { AttachmentBuilder } = await import('discord.js');
+      files.push(new AttachmentBuilder(attachment.path, { name: safeFilename }));
+    } else {
+      displayImage = getImageUrl(friend.image);
+    }
     
     if (friend.is_owned && hasAvailableSkins(friend.name)) {
       const equippedSkin = await getEquippedSkin(userId, friend.name);
@@ -1286,9 +1318,11 @@ async function showDetailedView(interaction, userId, friendIndex = 0, onlyFavori
         const skinPath = getSkinImagePath(friend.name, equippedSkin.id);
         
         if (skinPath && fs.existsSync(skinPath)) {
-          displayImage = `attachment://${equippedSkin.filename}`;
+          const safeFilename = equippedSkin.filename;
+          displayImage = `attachment://${safeFilename}`;
           displayTitle = `${ownedIcon}${friend.is_favorite ? '❤️ ' : ''}<:clothes:1417925457021505760>${emoji} ${formatSkinTitle(friend.name, equippedSkin.id)}${friend.is_unique ? ' ⭐' : ''}`;
-          files.push(skinPath);
+          const { AttachmentBuilder } = await import('discord.js');
+          files = [new AttachmentBuilder(skinPath, { name: safeFilename })];
         }
       }
     }
@@ -1298,11 +1332,11 @@ async function showDetailedView(interaction, userId, friendIndex = 0, onlyFavori
       description: friend.description,
       image: displayImage,
       fields: [
-        { name: 'Pony type', value: getPonyTypeInEnglish(friend.pony_type), inline: true },
-        { name: 'Rarity', value: RARITY_EMOJIS[friend.rarity], inline: true },
-        { name: 'Region', value: formatRegionName(friend.background), inline: true },
-        { name: 'Total Ponies', value: await getTotalPonyCount(friend.friend_id || friend.id), inline: true },
-        { name: 'Family', value: formatFamilyName(friend.family_group), inline: true }
+        { name: 'Pony type', value: getPonyTypeInEnglish(friend.pony_type) || 'Unknown', inline: true },
+        { name: 'Rarity', value: RARITY_EMOJIS[friend.rarity] || RARITY_EMOJIS['BASIC'] || 'Unknown', inline: true },
+        { name: 'Region', value: formatRegionName(friend.background) || 'Unknown', inline: true },
+        { name: 'Total Ponies', value: (await getTotalPonyCount(friend.friend_id || friend.id))?.toString() || '0', inline: true },
+        { name: 'Family', value: formatFamilyName(friend.family_group) || 'None', inline: true }
       ],
       footer: { text: `Pony ${friendIndex + 1} of ${friends.length}` },
       user: interaction.user
@@ -2094,7 +2128,7 @@ async function searchPony(interaction, userId, query, filter, isDetailed = false
         }
       }
       
-      description += `${ownedIcon}${favoriteIcon}${clothingIcon}${displayEmoji}${RARITY_EMOJIS[pony.rarity]} ${pony.name}`;
+      description += `${ownedIcon}${favoriteIcon}${clothingIcon}${displayEmoji}${RARITY_EMOJIS[pony.rarity] || RARITY_EMOJIS['BASIC'] || ''} ${pony.name}`;
 
       description += '\n';
     }
@@ -2406,7 +2440,7 @@ async function showClothingInterface(interaction, userId, friendIndex, ponyId, p
 
       const { getPonyFriendByName } = await import('../../models/FriendshipModel.js');
       const ponyData = await getPonyFriendByName(ponyName);
-      ponyImage = ponyData?.image;
+      ponyImage = getImageUrl(ponyData?.image);
     } else {
 
       const skinPath = getSkinImagePath(ponyName, currentSkin.id);

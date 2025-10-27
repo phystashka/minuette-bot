@@ -179,6 +179,19 @@ export const execute = async (message) => {
           return;
         }
         
+        if (message.content.startsWith('.reset season')) {
+          const { handleResetSeasonCommand } = await import('../commands/economy/clan.js');
+          await handleResetSeasonCommand(message);
+          return;
+        }
+        
+        if (message.content.startsWith('.set level')) {
+          const args = message.content.slice(10).trim().split(/ +/);
+          const { handleSetLevelCommand } = await import('../commands/economy/clan.js');
+          await handleSetLevelCommand(message, args);
+          return;
+        }
+        
         await handleSpawnMessage(message);
 
         const wasGuessHandled = await handleSpawnGuess(message, message.content.trim());
@@ -186,6 +199,14 @@ export const execute = async (message) => {
           return;
         }
         
+        if (!message.content.startsWith('.') && !message.content.startsWith('/')) {
+          try {
+            const { addQuestProgress } = await import('../utils/questUtils.js');
+            await addQuestProgress(message.author.id, 'send_messages', 1);
+          } catch (questError) {
+            console.debug('Quest progress error:', questError.message);
+          }
+        }
 
         addMessageToCache(message.author.id, message.guild.id, message.channel.id, message.channel);
         

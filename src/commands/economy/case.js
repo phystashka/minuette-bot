@@ -303,6 +303,13 @@ async function handleCaseOpeningV2(interaction, userId, guildId) {
       else if (randomValue < 0.965) {
         const amount = 1;
         const currentResources = await getResourcesByUserId(userId) || {};
+        currentResources.sparks = (currentResources.sparks || 0) + amount;
+        await updateResources(userId, currentResources);
+        rewardText = `<:Sparkl:1431337628900528138> \`${amount} Spark${amount > 1 ? 's' : ''}\``;
+      }
+      else if (randomValue < 0.975) {
+        const amount = 1;
+        const currentResources = await getResourcesByUserId(userId) || {};
         currentResources.forest_herbs = (currentResources.forest_herbs || 0) + amount;
         await updateResources(userId, currentResources);
         rewardText = `<:flowers:1420011704825417768> \`${amount} Forest Herbs\``;
