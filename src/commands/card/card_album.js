@@ -183,7 +183,6 @@ function drawCardPlaceholder(ctx, x, y, width, height, type) {
 }
 
 export async function execute(interaction) {
-  // Проверяем, что это подкоманда album
   if (interaction.options.getSubcommand() !== 'album') {
     return;
   }

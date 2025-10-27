@@ -8,24 +8,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const data = new SlashCommandBuilder()
-  .setName('ship')
-  .setDescription('Ship two users and see their compatibility!')
-  .addUserOption(option =>
-    option
-      .setName('user1')
-      .setDescription('First user to ship')
-      .setRequired(true)
-  )
-  .addUserOption(option =>
-    option
-      .setName('user2')
-      .setDescription('Second user to ship')
-      .setRequired(true)
-  )
-  .setDMPermission(true)
-  .setIntegrationTypes([0, 1])
-  .setContexts([0, 1, 2]);
+// User shipping compatibility - now used as a subcommand
 
 export async function execute(interaction) {
   const user1 = interaction.options.getUser('user1');

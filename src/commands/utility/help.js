@@ -11,7 +11,7 @@ import {
   SectionBuilder
 } from 'discord.js';
 import { execute as caseExecute } from '../economy/case.js';
-import { execute as ventureExecute } from '../economy/venture.js';
+import { execute as adventureExecute } from '../economy/adventure.js';
 import { execute as breedExecute } from '../economy/breed.js';
 import { execute as friendshipExecute } from '../economy/friendship.js';
 import { execute as myponiesExecute } from '../economy/myponies.js';
@@ -19,10 +19,10 @@ import { execute as profileExecute } from '../economy/profile.js';
 import { execute as leadersExecute } from '../economy/leaders.js';
 import { execute as balanceExecute } from '../economy/balance.js';
 import { execute as inventoryExecute } from '../economy/inventory.js';
-import { execute as zecoraHuntExecute } from '../economy/zecora_hut.js';
+import { execute as zecoraExecute } from '../economy/zecora.js';
 import { execute as rebirthExecute } from '../economy/rebirth.js';
 import { execute as bingoExecute } from '../economy/bingo.js';
-import { execute as derpibooruExecute } from '../utility/derpibooru.js';
+import { execute as derpibooruExecute } from './utility_derpibooru.js';
 
 const createMockOptions = (defaults = {}) => ({
   getString: (key) => defaults[key] || null,
@@ -90,12 +90,12 @@ export async function execute(interaction) {
   const collectionsCommands = [
     new SectionBuilder()
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent('**Venture**\nGo on a venture to find new ponies')
+        new TextDisplayBuilder().setContent('**Adventure**\nGo on an adventure to find new ponies')
       )
       .setButtonAccessory(
         new ButtonBuilder()
-          .setCustomId('venture')
-          .setLabel('/venture')
+          .setCustomId('adventure')
+          .setLabel('/adventure')
           .setStyle(ButtonStyle.Secondary)
       ),
     new SectionBuilder()
@@ -201,8 +201,8 @@ export async function execute(interaction) {
       )
       .setButtonAccessory(
         new ButtonBuilder()
-          .setCustomId('zecora_hut')
-          .setLabel('/zecora_hut')
+          .setCustomId('zecora')
+          .setLabel('/zecora')
           .setStyle(ButtonStyle.Secondary)
       ),
     new SectionBuilder()
@@ -427,15 +427,15 @@ export async function execute(interaction) {
             ephemeral: true
           });
         }
-      } else if (i.customId === 'venture') {
+      } else if (i.customId === 'adventure') {
         try {
-          const wrappedExecute = createCommandWrapper(ventureExecute, {});
+          const wrappedExecute = createCommandWrapper(adventureExecute, {});
           await wrappedExecute(i);
           return;
         } catch (error) {
-          console.error('Error executing venture command:', error);
+          console.error('Error executing adventure command:', error);
           return i.reply({
-            content: 'There was an error executing the venture command.',
+            content: 'There was an error executing the adventure command.',
             ephemeral: true
           });
         }
@@ -532,15 +532,15 @@ export async function execute(interaction) {
             ephemeral: true
           });
         }
-      } else if (i.customId === 'zecora_hut') {
+      } else if (i.customId === 'zecora') {
         try {
-          const wrappedExecute = createCommandWrapper(zecoraHuntExecute, {});
+          const wrappedExecute = createCommandWrapper(zecoraExecute, {});
           await wrappedExecute(i);
           return;
         } catch (error) {
-          console.error('Error executing zecora_hut command:', error);
+          console.error('Error executing zecora command:', error);
           return i.reply({
-            content: 'There was an error executing the zecora_hut command.',
+            content: 'There was an error executing the zecora command.',
             ephemeral: true
           });
         }

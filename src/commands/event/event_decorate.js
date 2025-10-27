@@ -5,10 +5,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { grantNightmareNightBackground, hasNightmareNightBackground } from '../../models/ProfileBackgroundModel.js';
 
-export const data = new SlashCommandBuilder()
-  .setName('decorate')
-  .setDescription('Decorate Ponyville for Nightmare Night!')
-  .setDMPermission(false);
+// Decorate Ponyville for Nightmare Night - now used as a subcommand
 
 
 const DECORATIONS = {

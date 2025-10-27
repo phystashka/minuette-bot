@@ -161,8 +161,3 @@ async function handleViewEmoji(interaction) {
     await interaction.reply({ embeds: [embed], ephemeral: true });
   }
 }
-
-export default {
-  data,
-  execute
-};

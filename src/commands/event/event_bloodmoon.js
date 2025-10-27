@@ -3,13 +3,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { isBloodMoonCurrentlyActive, getBloodMoonTimeLeft } from '../../models/BloodMoonModel.js';
 
-export const data = new SlashCommandBuilder()
-  .setName('bloodmoon')
-  .setDescription('Check the current Blood Moon event status')
-  .setDescriptionLocalizations({
-    'ru': 'Проверить статус события Кровавая Луна'
-  })
-  .setDMPermission(false);
+// Blood Moon event status - now used as a subcommand
 
 export async function execute(interaction) {
   try {

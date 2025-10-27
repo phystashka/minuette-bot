@@ -4,22 +4,23 @@ import FriendshipModel, { getUserPonyByUniqueId, updateCustomNickname, clearCust
 import { checkCooldown, setCooldown, createCooldownContainer } from '../../utils/cooldownManager.js';
 import { isDonator } from '../../models/DonatorModel.js';
 
-export const data = new SlashCommandBuilder()
-  .setName('nickname')
-  .setDescription('Give a custom nickname to one of your ponies (Donators only)')
-  .addStringOption(option =>
-    option
-      .setName('unique_id')
-      .setDescription('The unique ID of your pony')
-      .setRequired(true)
-  )
-  .addStringOption(option =>
-    option
-      .setName('new_name')
-      .setDescription('New nickname for your pony (max 30 characters, emojis allowed)')
-      .setRequired(true)
-  )
-  .setDMPermission(false);
+// Command is now a subcommand of /premium
+// export const data = new SlashCommandBuilder()
+//   .setName('nickname')
+//   .setDescription('Give a custom nickname to one of your ponies (Donators only)')
+//   .addStringOption(option =>
+//     option
+//       .setName('unique_id')
+//       .setDescription('The unique ID of your pony')
+//       .setRequired(true)
+//   )
+//   .addStringOption(option =>
+//     option
+//       .setName('new_name')
+//       .setDescription('New nickname for your pony (max 30 characters, emojis allowed)')
+//       .setRequired(true)
+//   )
+//   .setDMPermission(false);
 
 export async function execute(interaction) {
   const userId = interaction.user.id;

@@ -50,7 +50,7 @@ import {
 export const name = 'interactionCreate';
 export const once = false;
 
-const economyCommands = ['adventure', 'resources', 'friendship', 'zecora_hut', 'crime', 'balance', 'protection', 'leaders', 'farm', 'knock', 'adopt', 'battle', 'case', 'decorate', 'feed', 'inventory', 'myponies', 'profile', 'timely', 'trade', 'transfer_bits', 'bug', 'donate', 'pony_alerts', 'set_spawn', 'remove_spawn', 'clan', 'clan_invite', 'clan_emblem', 'clan_vice', 'clan_viceremove', 'artifacts'];
+const economyCommands = ['adventure', 'resources', 'friendship', 'zecora', 'crime', 'balance', 'protection', 'leaders', 'farm', 'knock', 'adopt', 'battle', 'case', 'decorate', 'feed', 'inventory', 'myponies', 'profile', 'timely', 'trade', 'transfer', 'bug', 'donate', 'pony_alerts', 'set_spawn', 'remove_spawn', 'clan', 'clan_invite', 'clan_emblem', 'clan_vice', 'clan_viceremove', 'artifacts'];
 
 export const execute = async (interaction) => {
   if (interaction.isChatInputCommand()) {
@@ -359,7 +359,7 @@ Purchase at least two collections to support the bot and unlock exclusive featur
       }
       
       if (customId.startsWith('mane6quiz_')) {
-        const { handleButtonInteraction } = await import('../commands/utility/mane6quiz.js');
+        const { handleButtonInteraction } = await import('../commands/utility/utility_mane6quiz.js');
         await handleButtonInteraction(interaction);
         return;
       }
@@ -385,6 +385,12 @@ Purchase at least two collections to support the bot and unlock exclusive featur
       if (customId.startsWith('connect4_')) {
         const connect4Command = await import('../commands/utility/game_connect4.js');
         await connect4Command.default.handleButton(interaction);
+        return;
+      }
+
+      if (customId.startsWith('hangpony_')) {
+        const { handleButtonInteraction } = await import('../commands/games/game_hangpony.js');
+        await handleButtonInteraction(interaction);
         return;
       }
 
@@ -831,7 +837,7 @@ Purchase at least two collections to support the bot and unlock exclusive featur
       
 
       if (customId.startsWith('zecora_')) {
-        const { handleZecoraButton } = await import('../commands/economy/zecora_hut.js');
+        const { handleZecoraButton } = await import('../commands/economy/zecora.js/index.js');
         return await handleZecoraButton(interaction);
       }
       
@@ -1340,6 +1346,12 @@ Purchase at least two collections to support the bot and unlock exclusive featur
       if (customId.startsWith('trade_manage_pony_')) {
         const { handleTradeModal } = await import('../commands/economy/trade.js');
         await handleTradeModal(interaction);
+        return;
+      }
+      
+      if (customId.startsWith('hangpony_')) {
+        const { handleModalSubmit } = await import('../commands/games/game_hangpony.js');
+        await handleModalSubmit(interaction);
         return;
       }
       

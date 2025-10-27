@@ -19,7 +19,7 @@ async function loadCommand(filePath) {
       return command.default;
     }
     const fileName = path.basename(filePath);
-    if (!fileName.startsWith('card_') && !fileName.startsWith('premium_') && !fileName.startsWith('game_') && !fileName.startsWith('casino_') && !fileName.startsWith('clan_')) {
+    if (!fileName.startsWith('card_') && !fileName.startsWith('premium_') && !fileName.startsWith('game_') && !fileName.startsWith('casino_') && !fileName.startsWith('clan_') && !fileName.startsWith('event_') && !fileName.startsWith('utility_') && fileName !== 'premium_nickname.js' && fileName !== 'premium_nickclear.js') {
       console.log(`WARNING: Command in file ${filePath} does not contain data`);
     }
   } catch (error) {
@@ -59,6 +59,14 @@ async function loadAllCommands() {
       }
       
       if (folder === 'clan' && file.startsWith('clan_')) {
+        return false;
+      }
+      
+      if (folder === 'event' && file.startsWith('event_')) {
+        return false;
+      }
+      
+      if (folder === 'utility' && file.startsWith('utility_')) {
         return false;
       }
       

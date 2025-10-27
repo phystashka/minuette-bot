@@ -42,7 +42,7 @@ function createNoPonyContainer(title, description) {
 }
 
 export const data = new SlashCommandBuilder()
-  .setName('transfer_bits')
+  .setName('transfer')
   .setDescription('Transfer bits to another user')
   .setDescriptionLocalizations({
     'ru': 'Перевести биты другому пользователю'
@@ -284,7 +284,7 @@ export async function execute(interaction) {
     });
     
   } catch (error) {
-    console.error('Error in transfer_bits command:', error);
+    console.error('Error in transfer command:', error);
     
 
     cooldowns.delete(interaction.user.id);

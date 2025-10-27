@@ -30,6 +30,34 @@ export const data = new SlashCommandBuilder()
           .setDescription('The emoji to set (required for set action)')
           .setRequired(false)
       )
+  )
+  .addSubcommand(subcommand =>
+    subcommand
+      .setName('nickname')
+      .setDescription('Give a custom nickname to one of your ponies (Donators only)')
+      .addStringOption(option =>
+        option
+          .setName('unique_id')
+          .setDescription('The unique ID of your pony')
+          .setRequired(true)
+      )
+      .addStringOption(option =>
+        option
+          .setName('new_name')
+          .setDescription('New nickname for your pony (max 30 characters, emojis allowed)')
+          .setRequired(true)
+      )
+  )
+  .addSubcommand(subcommand =>
+    subcommand
+      .setName('nickclear')
+      .setDescription('Remove custom nickname from one of your ponies (Donators only)')
+      .addStringOption(option =>
+        option
+          .setName('unique_id')
+          .setDescription('The unique ID of your pony')
+          .setRequired(true)
+      )
   );
 
 export async function execute(interaction) {
@@ -44,6 +72,14 @@ export async function execute(interaction) {
       case 'emoji':
         const { executeEmoji } = await import('./premium_emoji.js');
         return await executeEmoji(interaction);
+        
+      case 'nickname':
+        const { execute: nicknameExecute } = await import('./premium_nickname.js');
+        return await nicknameExecute(interaction);
+        
+      case 'nickclear':
+        const { execute: nickclearExecute } = await import('./premium_nickclear.js');
+        return await nickclearExecute(interaction);
         
       default:
         await interaction.reply({

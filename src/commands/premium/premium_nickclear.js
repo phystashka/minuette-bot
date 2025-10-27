@@ -4,16 +4,7 @@ import { getUserPonyByUniqueId, clearCustomNickname } from '../../models/Friends
 import { checkCooldown, setCooldown, createCooldownContainer } from '../../utils/cooldownManager.js';
 import { isDonator } from '../../models/DonatorModel.js';
 
-export const data = new SlashCommandBuilder()
-  .setName('nickclear')
-  .setDescription('Remove custom nickname from one of your ponies (Donators only)')
-  .addStringOption(option =>
-    option
-      .setName('unique_id')
-      .setDescription('The unique ID of your pony')
-      .setRequired(true)
-  )
-  .setDMPermission(false);
+// Command is now a subcommand of /premium
 
 export async function execute(interaction) {
   const userId = interaction.user.id;

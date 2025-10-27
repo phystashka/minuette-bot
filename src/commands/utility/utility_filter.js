@@ -2,60 +2,7 @@ import { SlashCommandBuilder, AttachmentBuilder } from 'discord.js';
 import { createEmbed } from '../../utils/components.js';
 import { createCanvas, loadImage } from 'canvas';
 
-export const data = new SlashCommandBuilder()
-  .setName('filter')
-  .setDescription('Apply various filters to an image!')
-  .addStringOption(option =>
-    option
-      .setName('filter_type')
-      .setDescription('Choose a filter to apply')
-      .setRequired(true)
-      .addChoices(
-        { name: 'Blur', value: 'blur' },
-        { name: 'Greyscale', value: 'greyscale' },
-        { name: 'Sepia', value: 'sepia' },
-        { name: 'Invert', value: 'invert' },
-        { name: 'Triggered', value: 'triggered' },
-        { name: 'Wasted', value: 'wasted' },
-        { name: 'Jail', value: 'jail' },
-        { name: 'Passed', value: 'passed' },
-        { name: 'Horny', value: 'horny' },
-        { name: 'Demotivator', value: 'demotivator' },
-        { name: 'Pixelate', value: 'pixelate' },
-        { name: 'Brightness', value: 'brightness' },
-        { name: 'Threshold', value: 'threshold' },
-        { name: 'Circle', value: 'circle' },
-        { name: 'Overlay', value: 'overlay' },
-        { name: 'Heart', value: 'heart' }
-      )
-  )
-  .addAttachmentOption(option =>
-    option
-      .setName('image')
-      .setDescription('The image to apply filter to (optional - if not provided, will use user avatar)')
-      .setRequired(false)
-  )
-  .addUserOption(option =>
-    option
-      .setName('user')
-      .setDescription('User whose avatar to use (optional - defaults to you)')
-      .setRequired(false)
-  )
-  .addStringOption(option =>
-    option
-      .setName('text')
-      .setDescription('Text for demotivator title')
-      .setRequired(false)
-  )
-  .addStringOption(option =>
-    option
-      .setName('subtitle')
-      .setDescription('Subtitle for demotivator (bottom text)')
-      .setRequired(false)
-  )
-  .setDMPermission(true)
-  .setIntegrationTypes([0, 1])
-  .setContexts([0, 1, 2]);
+// Image filter utility - now used as a subcommand
 
 export async function execute(interaction) {
   const imageAttachment = interaction.options.getAttachment('image');

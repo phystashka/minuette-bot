@@ -8,14 +8,7 @@ import { removeBits } from '../../models/PonyModel.js';
 const KNOCK_COOLDOWN = 15 * 60 * 1000;
 const knockCooldowns = new Map();
 
-export const data = new SlashCommandBuilder()
-  .setName('knock')
-  .setDescription('Knock on someone\'s door for Halloween trick-or-treat')
-  .setDMPermission(false)
-  .addUserOption(option =>
-    option.setName('user')
-      .setDescription('User to knock on their door')
-      .setRequired(true));
+// Halloween trick-or-treat knock - now used as a subcommand
 
 export async function execute(interaction) {
   try {

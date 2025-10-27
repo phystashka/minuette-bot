@@ -62,6 +62,11 @@ export const data = new SlashCommandBuilder()
           .setMinValue(1)
           .setMaxValue(10000)
       )
+  )
+  .addSubcommand(subcommand =>
+    subcommand
+      .setName('hangpony')
+      .setDescription('Play hangman with MLP themed words!')
   );
 
 export async function execute(interaction) {
@@ -80,6 +85,10 @@ export async function execute(interaction) {
       case 'connect4':
         const { execute: connect4Execute } = await import('./game_connect4.js');
         return await connect4Execute(interaction);
+        
+      case 'hangpony':
+        const { execute: hangponyExecute } = await import('./game_hangpony.js');
+        return await hangponyExecute(interaction);
         
       default:
         await interaction.reply({

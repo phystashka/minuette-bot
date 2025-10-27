@@ -968,9 +968,7 @@ const QUIZ_QUESTIONS = [
 
 const activeQuizzes = new Map();
 
-export const data = new SlashCommandBuilder()
-  .setName('mane6quiz')
-  .setDescription('Take a quiz to find out which Mane 6 character you are most like!');
+// Mane 6 personality quiz - now used as a subcommand
 
 export async function execute(interaction) {
   const userId = interaction.user.id;

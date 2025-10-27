@@ -6,7 +6,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 export const data = new SlashCommandBuilder()
-  .setName('zecora_hut')
+  .setName('zecora')
   .setDescription('Visit Zecora\'s mystical hut to brew magical potions')
   .setDMPermission(false);
 
@@ -72,7 +72,7 @@ export async function execute(interaction) {
     await showIntroStage(interaction, userId);
     
   } catch (error) {
-    console.error('Error in zecora_hut command:', error);
+    console.error('Error in zecora command:', error);
     
     const errorEmbed = createEmbed({
       title: '❌ Error',

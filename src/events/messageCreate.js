@@ -1,6 +1,7 @@
 import { handleSpawnGuess, handleSpawnMessage } from '../utils/autoSpawn.js';
 import { addMessageToCache } from '../utils/messageCacheManager.js';
 import { loadDMMap, saveDMMap } from '../utils/dmMapStore.js';
+import { checkMessageTriggers } from '../utils/messageTriggers.js';
 import { EmbedBuilder, ChannelType } from 'discord.js';
 
 let persistentDMMap = loadDMMap();
@@ -22,7 +23,7 @@ export const execute = async (message) => {
     const isDM = !message.guild || message.channel.type === ChannelType.DM;
     
     if (isDM) {
-      console.log(`🔄 Processing DM from ${message.author.tag}`);
+      console.log(`Processing DM from ${message.author.tag}`);
       try {
         const forwardChannel = await message.client.channels.fetch(DM_FORWARD_CHANNEL_ID);
         if (forwardChannel) {
@@ -161,9 +162,13 @@ export const execute = async (message) => {
       return;
     }
     
-
     if (message.guild) {
       try {
+        const triggerResponse = checkMessageTriggers(message.content);
+        if (triggerResponse) {
+          await message.reply(triggerResponse);
+          return;
+        }
 
         if (message.content.startsWith('.spawn')) {
           const args = message.content.slice(6).trim().split(/ +/);

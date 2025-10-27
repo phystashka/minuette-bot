@@ -3,51 +3,7 @@ import { createEmbed, createButton, createActionRow } from '../../utils/componen
 import { errors, checks } from '../../utils/validators.js';
 import { FILTERS, handleDerpiPagination, displayImage, fetchImages, processQuery, createImageEmbed } from '../../utils/derpi/derpiHandler.js';
 
-export const data = new SlashCommandBuilder()
-  .setName('derpibooru')
-  .setDescription('Search for art on Derpibooru')
-  .setDMPermission(true)
-  .setIntegrationTypes([0, 1])
-  .setContexts([0, 1, 2])
-  .addStringOption(option =>
-    option
-      .setName('query')
-      .setDescription('Tags for search (e.g., rainbow dash, fluttershy)')
-      .setRequired(false)
-  )
-  .addIntegerOption(option =>
-    option
-      .setName('amount')
-      .setDescription('Number of arts (from 1 to 10)')
-      .setMinValue(1)
-      .setMaxValue(10)
-      .setRequired(false)
-  )
-  .addStringOption(option =>
-    option
-      .setName('filter')
-      .setDescription('Content filter')
-      .setRequired(false)
-      .addChoices(
-        { name: 'Default', value: 'DEFAULT' },
-        { name: 'Explicit Only (NSFW channel only)', value: 'EXPLICIT_ONLY' },
-        { name: 'Dark', value: 'DARK' },
-        { name: 'Everything', value: 'EVERYTHING' }
-      )
-  )
-  .addBooleanOption(option =>
-    option
-      .setName('new_only')
-      .setDescription('Show only images uploaded in the last 24 hours')
-      .setRequired(false)
-  )
-  .addIntegerOption(option =>
-    option
-      .setName('min_score')
-      .setDescription('Minimum score (likes) for images')
-      .setRequired(false)
-      .setMinValue(0)
-  );
+// Derpibooru search - now used as a subcommand
 
 export async function execute(interaction) {
   await interaction.deferReply();
