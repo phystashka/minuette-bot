@@ -12,6 +12,7 @@ import { addHarmony, removeHarmony } from '../../models/HarmonyModel.js';
 import { t } from '../../utils/localization.js';
 import { getGuildLanguage } from '../../models/GuildModel.js';
 import { getProtectedBits } from './balance.js';
+import { getLuckyRollBonus } from '../../utils/uniquePonyUtils.js';
 
 const COOLDOWN_TIME = 3 * 60 * 60 * 1000;
 const BITS_PERCENTAGE = 0.15;
@@ -60,7 +61,7 @@ function createCooldownContainer(title, description) {
   return container;
 }
 
-function createSuccessContainer(title, message, stealAmount) {
+function createSuccessContainer(title, message, stealAmount, luckyRollBonus = 0) {
   const container = new ContainerBuilder();
   
   const titleText = new TextDisplayBuilder()
@@ -70,6 +71,12 @@ function createSuccessContainer(title, message, stealAmount) {
   const descText = new TextDisplayBuilder()
     .setContent(message);
   container.addTextDisplayComponents(descText);
+  
+  if (luckyRollBonus > 0) {
+    const bonusText = new TextDisplayBuilder()
+      .setContent(`⭐ **Lucky Roll Bonus:** +${luckyRollBonus}% success chance`);
+    container.addTextDisplayComponents(bonusText);
+  }
   
   const separator = new SeparatorBuilder();
   container.addSeparatorComponents(separator);
@@ -82,7 +89,7 @@ function createSuccessContainer(title, message, stealAmount) {
 }
 
 
-function createFailureContainer(title, message, penaltyAmount) {
+function createFailureContainer(title, message, penaltyAmount, luckyRollBonus = 0) {
   const container = new ContainerBuilder();
   
   const titleText = new TextDisplayBuilder()
@@ -92,6 +99,12 @@ function createFailureContainer(title, message, penaltyAmount) {
   const descText = new TextDisplayBuilder()
     .setContent(message);
   container.addTextDisplayComponents(descText);
+  
+  if (luckyRollBonus > 0) {
+    const bonusText = new TextDisplayBuilder()
+      .setContent(`⭐ **Lucky Roll Bonus:** +${luckyRollBonus}% success chance`);
+    container.addTextDisplayComponents(bonusText);
+  }
   
   const separator = new SeparatorBuilder();
   container.addSeparatorComponents(separator);
@@ -225,7 +238,12 @@ export async function execute(interaction) {
     const stealAmount = Math.floor(targetPony.bits * BITS_PERCENTAGE);
     const penaltyAmount = Math.floor(userPony.bits * BITS_PERCENTAGE);
     
-    const isSuccess = Math.random() < 0.5;
+    const luckyRollBonus = await getLuckyRollBonus(userId);
+    const baseSuccessChance = 0.5;
+    const bonusChance = luckyRollBonus / 100;
+    const finalSuccessChance = Math.min(baseSuccessChance + bonusChance, 0.95);
+    
+    const isSuccess = Math.random() < finalSuccessChance;
 
     if (isSuccess) {
       await addBits(userId, stealAmount);
@@ -248,7 +266,8 @@ export async function execute(interaction) {
       const container = createSuccessContainer(
         await t('crime.success', guildId),
         successMessage,
-        stealAmount.toLocaleString()
+        stealAmount.toLocaleString(),
+        luckyRollBonus
       );
       
       await interaction.reply({
@@ -267,7 +286,8 @@ export async function execute(interaction) {
       const container = createFailureContainer(
         await t('crime.failure', guildId),
         failMessage,
-        penaltyAmount.toLocaleString()
+        penaltyAmount.toLocaleString(),
+        luckyRollBonus
       );
       
       await interaction.reply({

@@ -24,6 +24,8 @@ import { createVoteTable } from '../models/VoteModel.js';
 import { createBingoTable } from '../models/BingoModel.js';
 import { initCardsTable } from '../models/CardModel.js';
 import { initializeCardTables } from '../models/CardsModel.js';
+import { createUniquePonyUpgradeTable } from '../models/UniquePonyModel.js';
+import { createFriendsTable } from '../models/FriendsModel.js';
 
 
 
@@ -66,6 +68,10 @@ export const setupDatabase = async () => {
     
 
     await createUserStatsTable();
+    
+    await createUniquePonyUpgradeTable();
+    
+    await createFriendsTable();
     
 
     await initDonatorTables();

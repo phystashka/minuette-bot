@@ -20,9 +20,6 @@ import { addFriend } from '../../models/FriendshipModel.js';
 import { grantDonatorBackground, purchaseBackground } from '../../models/ProfileBackgroundModel.js';
 import { query, getRow } from '../../utils/database.js';
 
-// Command data is now exported from premium.js
-// This file only contains the execute function for the shop subcommand
-
 async function addFriendDuplicate(userId, friendId) {
   try {
 
@@ -79,13 +76,13 @@ const BUNDLE_PRICES = {
   nightmare_star: 750,
   petunia_petals: 750,
   bat_pony_pack: 750,
-  elements_of_insanity: 1250
+  umbrum: 900  
 };
 
-const ELEMENTS_OF_INSANITY_END_DATE = new Date('2025-10-26T23:59:59Z');
+const UMBRUM_END_DATE = new Date('2025-11-04T23:59:59Z'); 
 
-function isElementsOfInsanityActive() {
-  return new Date() < ELEMENTS_OF_INSANITY_END_DATE;
+function isUmbrumActive() {
+  return new Date() < UMBRUM_END_DATE;
 }
 
 function getBundlePrice(bundleType) {
@@ -137,29 +134,29 @@ function createShopContainer(userDiamonds, username) {
   const separator3 = new SeparatorBuilder();
   container.addSeparatorComponents(separator3);
 
-  if (isElementsOfInsanityActive()) {
-    const limitedTitle = new TextDisplayBuilder()
-      .setContent('**🔥 Limited-Time Donation Shop Offer! 🔥**');
-    container.addTextDisplayComponents(limitedTitle);
+  if (isUmbrumActive()) {
+    const umbrumTitle = new TextDisplayBuilder()
+      .setContent('**🌙 Limited-Time Umbrum Offer! 🌙**');
+    container.addTextDisplayComponents(umbrumTitle);
     
-    const limitedDesc = new TextDisplayBuilder()
-      .setContent('**7 Days Only!** (Ends <t:1761523199:F>)\nGrab these Elements of Insanity characters: RariFruit, Fluttershout, Applepills, Pinkis Cupcake, Rainbine, Brutalight Sparcake, and Derpigun! Add chaotic GMod flair to your collection before they vanish!');
-    container.addTextDisplayComponents(limitedDesc);
+    const umbrumDesc = new TextDisplayBuilder()
+      .setContent('**7 Days Only!** (Ends <t:1762196399:F>)\nGet the ancient Umbrum - shadowy wraith-like beings from IDW comics! These masters of manipulation and darkness bring otherworldly power to your collection!');
+    container.addTextDisplayComponents(umbrumDesc);
     
-    const limitedCountdown = new TextDisplayBuilder()
-      .setContent(`-# **Time Remaining:** <t:1761523199:R>`);
-    container.addTextDisplayComponents(limitedCountdown);
+    const umbrumCountdown = new TextDisplayBuilder()
+      .setContent(`-# **Time Remaining:** <t:1762196399:R>`);
+    container.addTextDisplayComponents(umbrumCountdown);
     
-    const elementsButton = new ButtonBuilder()
-      .setCustomId(`elements_of_insanity_button`)
-      .setLabel('Elements of Insanity Pack')
-      .setStyle(ButtonStyle.Danger);
+    const umbrumButton = new ButtonBuilder()
+      .setCustomId(`umbrum_button`)
+      .setLabel('Umbrum Pony - $15 USD')
+      .setStyle(ButtonStyle.Primary);
     
-    const elementsRow = new ActionRowBuilder().addComponents(elementsButton);
-    container.addActionRowComponents(elementsRow);
+    const umbrumRow = new ActionRowBuilder().addComponents(umbrumButton);
+    container.addActionRowComponents(umbrumRow);
     
-    const limitedSeparator = new SeparatorBuilder();
-    container.addSeparatorComponents(limitedSeparator);
+    const umbrumSeparator = new SeparatorBuilder();
+    container.addSeparatorComponents(umbrumSeparator);
   }
   
   const servicesTitle = new TextDisplayBuilder()
@@ -432,12 +429,12 @@ export async function execute(interaction) {
   }
 }
 
-async function handleElementsOfInsanityButton(interaction) {
+async function handleUmbrumButton(interaction) {
   try {
     const userId = interaction.user.id;
     const userDiamonds = await getDiamonds(userId);
     
-    if (!isElementsOfInsanityActive()) {
+    if (!isUmbrumActive()) {
       return interaction.reply({
         content: 'This limited offer has expired!',
         ephemeral: true
@@ -447,36 +444,37 @@ async function handleElementsOfInsanityButton(interaction) {
     const container = new ContainerBuilder();
     
     const title = new TextDisplayBuilder()
-      .setContent('**🔥 Elements of Insanity Pack - Limited Offer!**\n7 unique chaotic GMod characters in one special bundle!');
+      .setContent('**🌙 Umbrum - Limited Offer!**\nAncient shadowy wraith-like beings from IDW comics, imprisoned beneath the Crystal Empire');
     container.addTextDisplayComponents(title);
     
-    const elementsPrice = new TextDisplayBuilder()
-      .setContent(`**Price:** 1250 <a:diamond:1423629073984524298>\n**Your Balance:** ${userDiamonds} <a:diamond:1423629073984524298>`);
-    container.addTextDisplayComponents(elementsPrice);
+    const umbrumPrice = new TextDisplayBuilder()
+      .setContent(`**Price:** 900 <a:diamond:1423629073984524298> ($15 USD)\n**Your Balance:** ${userDiamonds} <a:diamond:1423629073984524298>`);
+    container.addTextDisplayComponents(umbrumPrice);
     
-    const elementsCountdown = new TextDisplayBuilder()
-      .setContent(`-# **Ends:** <t:1761523199:F> (<t:1761523199:R>)`);
-    container.addTextDisplayComponents(elementsCountdown);
+    const umbrumCountdown = new TextDisplayBuilder()
+      .setContent(`-# **Ends:** <t:1762196399:F> (<t:1762196399:R>)`);
+    container.addTextDisplayComponents(umbrumCountdown);
     
-    const elementsSep = new SeparatorBuilder();
-    container.addSeparatorComponents(elementsSep);
+    const umbrumSep = new SeparatorBuilder();
+    container.addSeparatorComponents(umbrumSep);
     
-    const elementsContents = new TextDisplayBuilder()
-      .setContent('**Bundle Contents:**\n> RariFruit\n> Fluttershout\n> Applepills\n> Pinkis Cupcake\n> Rainbine\n> Brutalight Sparcake\n> Derpigun\nAnd get free 7 new __exlclusive__ **cards**!');
-    container.addTextDisplayComponents(elementsContents);
+    const umbrumDesc = new TextDisplayBuilder()
+      .setContent('**About Umbrum:**\n> Ancient shadowy wraith-like beings from IDW comics\n> Imprisoned beneath the Crystal Empire by ancient magic\n> Masters of manipulation and darkness led by Rabia\n> **UNIQUE** rarity - extremely rare wraith entities\n> This is a limited-time exclusive offering!');
+    container.addTextDisplayComponents(umbrumDesc);
     
     const gallery = new MediaGalleryBuilder()
       .addItems(
         new MediaGalleryItemBuilder()
-          .setURL('https://i.imgur.com/4mEMhqy.png')
+          .setURL('https://i.imgur.com/nUwA9FZ.png') 
       );
     container.addMediaGalleryComponents(gallery);
 
     const purchaseButton = new ButtonBuilder()
-      .setCustomId(`purchase_elements_of_insanity_${userId}`)
-      .setLabel('Purchase for 1250')
-      .setStyle(userDiamonds >= 1250 ? ButtonStyle.Success : ButtonStyle.Secondary)
-      .setDisabled(userDiamonds < 1250);
+      .setCustomId(`purchase_umbrum_${userId}`)
+      .setLabel('Purchase for 900')
+      .setEmoji('<a:diamond:1423629073984524298>')
+      .setStyle(userDiamonds >= 900 ? ButtonStyle.Success : ButtonStyle.Secondary)
+      .setDisabled(userDiamonds < 900);
     
     const backButton = new ButtonBuilder()
       .setCustomId(`back_to_shop_${userId}`)
@@ -493,7 +491,7 @@ async function handleElementsOfInsanityButton(interaction) {
     });
     
   } catch (error) {
-    console.error('Error in handleElementsOfInsanityButton:', error);
+    console.error('Error in handleUmbrumButton:', error);
     await interaction.followUp({ content: 'An error occurred while loading the preview.', ephemeral: true });
   }
 }
@@ -1236,8 +1234,36 @@ async function handleBatPonyPackBundle(interaction, userStats) {
   });
 }
 
-async function handleElementsOfInsanityBundle(interaction, userId) {
-  const bundleCost = BUNDLE_PRICES.elements_of_insanity;
+async function handleUmbrumPurchase(interaction) {
+  try {
+    await interaction.deferUpdate();
+    
+    const [, , userId] = interaction.customId.split('_');
+    
+    if (interaction.user.id !== userId) {
+      return interaction.followUp({
+        content: 'Only the command user can make purchases!',
+        ephemeral: true
+      });
+    }
+
+    if (!isUmbrumActive()) {
+      return interaction.followUp({
+        content: 'This limited offer has expired!',
+        ephemeral: true
+      });
+    }
+
+    await handleUmbrumBundle(interaction, userId);
+    
+  } catch (error) {
+    console.error('Error in handleUmbrumPurchase:', error);
+    await interaction.followUp({ content: 'An error occurred while processing your purchase.', ephemeral: true });
+  }
+}
+
+async function handleUmbrumBundle(interaction, userId) {
+  const bundleCost = BUNDLE_PRICES.umbrum;
   
   try {
     const userDiamonds = await getDiamonds(userId);
@@ -1250,83 +1276,43 @@ async function handleElementsOfInsanityBundle(interaction, userId) {
 
     await removeDiamonds(userId, bundleCost);
 
-    const ponies = [
-      'RariFruit',
-      'Fluttershout', 
-      'Applepills',
-      'Pinkis Cupcake',
-      'Rainbine',
-      'Brutalight Sparcake',
-      'Derpigun'
-    ];
-
-    let addedPonies = [];
-    
-    for (const ponyName of ponies) {
-      try {
-
-        const ponyRecord = await getRow('SELECT id FROM pony_friends WHERE name = ?', [ponyName]);
-        if (ponyRecord) {
-          const friendResult = await addFriendDuplicate(userId, ponyRecord.id);
-          if (friendResult.success) {
-            addedPonies.push(`${ponyName} (Copy #${friendResult.encounterCount}, Level ${friendResult.newLevel})`);
-          } else {
-            addedPonies.push(`${ponyName} (Failed to add - compensation given)`);
-          }
+    try {
+      const ponyRecord = await getRow('SELECT id FROM pony_friends WHERE name = ?', ['Umbrum']);
+      let addResult = '';
+      
+      if (ponyRecord) {
+        const friendResult = await addFriendDuplicate(userId, ponyRecord.id);
+        if (friendResult.success) {
+          addResult = `Umbrum (Copy #${friendResult.encounterCount}, Level ${friendResult.newLevel})`;
         } else {
-          addedPonies.push(`${ponyName} (Pony not found in database)`);
+          addResult = 'Umbrum (Failed to add - compensation given)';
         }
-      } catch (error) {
-        console.log(`Error adding pony ${ponyName} for user ${userId}:`, error);
-        addedPonies.push(`${ponyName} (Error occurred)`);
+      } else {
+        addResult = 'Umbrum (Pony not found in database)';
       }
+
+      const remainingDiamonds = await getDiamonds(userId);
+      const successContainer = new ContainerBuilder();
+      
+      const successText = new TextDisplayBuilder()
+        .setContent(`**🌙 Umbrum Purchased!**\n\nCongratulations! You have acquired the ancient wraith-like being:\n\n• ${addResult}\n\nDiamonds spent: ${bundleCost}\nRemaining diamonds: ${remainingDiamonds}\n\n*The dark power of manipulation and shadows now flows through your collection...*`);
+      successContainer.addTextDisplayComponents(successText);
+
+      await interaction.editReply({ 
+        content: '', 
+        flags: MessageFlags.IsComponentsV2,
+        attachments: [],
+        components: [successContainer]
+      });
+
+    } catch (error) {
+      console.log(`Error adding Umbrum pony for user ${userId}:`, error);
+      await interaction.followUp({ content: 'An error occurred while adding the Umbrum pony.', ephemeral: true });
     }
-
-    const remainingDiamonds = await getDiamonds(userId);
-    const successContainer = new ContainerBuilder();
-    
-    const successText = new TextDisplayBuilder()
-      .setContent(`**Elements of Insanity Bundle Purchased!**\n\nCongratulations! Pony addition results:\n\n${addedPonies.map(name => `• ${name}`).join('\n')}\n\nDiamonds spent: ${bundleCost}\nRemaining diamonds: ${remainingDiamonds}`);
-    successContainer.addTextDisplayComponents(successText);
-
-    await interaction.editReply({ 
-      content: '', 
-      flags: MessageFlags.IsComponentsV2,
-      attachments: [],
-      components: [successContainer]
-    });
 
   } catch (error) {
-    console.error('Error purchasing Elements of Insanity bundle:', error);
-    await interaction.followUp({ content: 'An error occurred while purchasing the bundle.', ephemeral: true });
-  }
-}
-
-async function handleElementsOfInsanityPurchase(interaction) {
-  try {
-    await interaction.deferUpdate();
-    
-    const [, , , , userId] = interaction.customId.split('_');
-    
-    if (interaction.user.id !== userId) {
-      return interaction.followUp({
-        content: 'Only the command user can make purchases!',
-        ephemeral: true
-      });
-    }
-
-    if (!isElementsOfInsanityActive()) {
-      return interaction.followUp({
-        content: 'This limited offer has expired!',
-        ephemeral: true
-      });
-    }
-
-    await handleElementsOfInsanityBundle(interaction, userId);
-    
-  } catch (error) {
-    console.error('Error in handleElementsOfInsanityPurchase:', error);
-    await interaction.followUp({ content: 'An error occurred while processing your purchase.', ephemeral: true });
+    console.error('Error purchasing Umbrum bundle:', error);
+    await interaction.followUp({ content: 'An error occurred while purchasing the Umbrum pony.', ephemeral: true });
   }
 }
 
@@ -1396,6 +1382,6 @@ async function handleBackToShop(interaction) {
   }
 }
 
-export { handleBundlePreview, handleBundlePurchase, handleElementsOfInsanityButton, handleElementsOfInsanityPurchase, handleBackToShop };
+export { handleBundlePreview, handleBundlePurchase, handleUmbrumButton, handleUmbrumPurchase, handleBackToShop };
 
 export const guildOnly = false;

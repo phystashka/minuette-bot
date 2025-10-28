@@ -3,6 +3,7 @@ import { createEmbed } from '../../utils/components.js';
 import { query, getRow } from '../../utils/database.js';
 import { addExperience, calculateLevelFromExperience, getTotalExperienceForLevel, getRequiredExperience } from '../../utils/friendshipExperience.js';
 import { getCutieMarkFromPonyObject } from '../../utils/cutiemarksManager.js';
+import { getUniquePonyUpgrade } from '../../models/UniquePonyModel.js';
 
 
 const feedCooldowns = new Map();
@@ -132,14 +133,45 @@ export async function execute(interaction) {
           })]
         });
       }
+
+      const profilePony = await getRow(
+        'SELECT pf.name FROM pony_friends pf JOIN friendship f ON pf.id = f.friend_id WHERE f.user_id = ? AND f.is_profile_pony = 1',
+        [userId]
+      );
+      
+      let echoBonus = 1;
+      if (profilePony && profilePony.name === 'Echo') {
+        const echoUpgradeLevel = await getUniquePonyUpgrade(userId, 'Echo');
+        console.log(`[FEED] Echo found in profile. Upgrade level: ${echoUpgradeLevel}`);
+        if (echoUpgradeLevel >= 1) {
+          echoBonus = 2; 
+          console.log(`[FEED] Echo bonus activated! echoBonus = ${echoBonus}`);
+        } else {
+          console.log(`[FEED] Echo not upgraded. Upgrade level: ${echoUpgradeLevel}`);
+        }
+      } else {
+        console.log(`[FEED] Profile pony is not Echo. Profile pony:`, profilePony);
+      }
+
+      const baseLevels = FOOD_TYPES[foodType].levels;
+      const levelsToAdd = baseLevels * echoBonus;
+      console.log(`[FEED] ${foodType}: baseLevels=${baseLevels}, echoBonus=${echoBonus}, levelsToAdd=${levelsToAdd}`);
       
 
-      const levelsToAdd = FOOD_TYPES[foodType].levels;
+      const currentExperience = parseInt(pony.experience) || 0;
+      const currentLevelBaseExp = getTotalExperienceForLevel(currentLevel);
+      const currentLevelProgress = currentExperience - currentLevelBaseExp;
       
-
-      const newLevel = Math.min(currentLevel + levelsToAdd, 100);
+      const baseLevelExp = getTotalExperienceForLevel(currentLevel + baseLevels) - currentLevelBaseExp;
+      
+      const bonusExpGain = baseLevelExp * echoBonus;
+      const newExperience = currentExperience + bonusExpGain;
+      
+      const levelData = calculateLevelFromExperience(newExperience);
+      const newLevel = Math.min(levelData.level, 100);
       const actualLevelsGained = newLevel - currentLevel;
       
+      console.log(`[FEED] Detailed calc: currentExp=${currentExperience}, baseLevelExp=${baseLevelExp}, bonusExpGain=${bonusExpGain}, newExp=${newExperience}, newLevel=${newLevel}`);
 
       if (actualLevelsGained === 0) {
         return interaction.editReply({
@@ -150,15 +182,6 @@ export async function execute(interaction) {
           })]
         });
       }
-      
-
-      const currentExperience = parseInt(pony.experience) || 0;
-      const currentLevelBaseExp = getTotalExperienceForLevel(currentLevel);
-      const currentLevelProgress = currentExperience - currentLevelBaseExp;
-      
-
-      const newLevelBaseExp = getTotalExperienceForLevel(newLevel);
-      const newExperience = newLevelBaseExp + currentLevelProgress;
 
 
       const willGetCutieMark = currentLevel < CUTIE_MARK_LEVEL && newLevel >= CUTIE_MARK_LEVEL;
@@ -207,15 +230,20 @@ export async function execute(interaction) {
 
       const experienceGained = newExperience - currentExperience;
       let description = `${FOOD_TYPES[foodType].emoji} You fed **${pony.name}** with **${FOOD_TYPES[foodType].name}**!\n\n`;
-      description += `📈 **Level:** ${currentLevel} → **${newLevel}** (+${actualLevelsGained})\n`;
-      description += `✨ **Experience:** ${currentExperience} → **${newExperience}** (+${experienceGained})\n\n`;
+      
+      if (echoBonus > 1) {
+        description += `⭐ **Echo Bonus:** Double feeding efficiency active!\n\n`;
+      }
+      
+      description += `**Level:** ${currentLevel} → **${newLevel}** (+${actualLevelsGained})\n`;
+      description += `**Experience:** ${currentExperience} → **${newExperience}** (+${experienceGained})\n\n`;
 
       if (willGetCutieMark) {
 
         const cutieMark = getCutieMarkFromPonyObject(pony);
         const cutieMarkDisplay = cutieMark ? `${cutieMark} ` : '';
         
-        description += `🎉 **Congratulations!** **${cutieMarkDisplay}${pony.name}** reached level ${CUTIE_MARK_LEVEL} and earned their **cutie mark**! ✨\n\n`;
+        description += `**Congratulations!** **${cutieMarkDisplay}${pony.name}** reached level ${CUTIE_MARK_LEVEL} and earned their **cutie mark**! ✨\n\n`;
       } else if (newLevel >= CUTIE_MARK_LEVEL) {
 
         const cutieMark = getCutieMarkFromPonyObject(pony);

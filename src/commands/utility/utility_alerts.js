@@ -56,7 +56,6 @@ export async function execute(interaction) {
           return await interaction.reply({ embeds: [embed], ephemeral: true });
         }
 
-        // Check if pony rarity is restricted for alerts
         const restrictedRarities = ['ADMIN', 'UNIQUE', 'EXCLUSIVE'];
         if (restrictedRarities.includes(ponyExists.rarity?.toUpperCase())) {
           const embed = createEmbed()
@@ -148,7 +147,7 @@ export async function execute(interaction) {
         }
         break;
       }
-
+      
       case 'list': {
         const alerts = await getUserPonyAlerts(userId);
         

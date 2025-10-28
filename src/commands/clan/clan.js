@@ -1086,7 +1086,17 @@ export default {
             const progress = Math.min(quest.current_progress, quest.target_value);
             const percentage = Math.round((progress / quest.target_value) * 100);
             const filledBars = Math.floor(percentage / 10);
-            const progressBar = '🟩'.repeat(filledBars) + '⬛'.repeat(10 - filledBars);
+            let progressBar = '';
+            for (let i = 0; i < 10; i++) {
+              const isFilled = i < filledBars;
+              if (i === 0) {
+                progressBar += isFilled ? '<:f1:1432768549461426259>' : '<:p1:1432768556688347287>';
+              } else if (i === 9) {
+                progressBar += isFilled ? '<:f3:1432770883851915265>' : '<:p3:1432770532272771183>';
+              } else {
+                progressBar += isFilled ? '<:f2:1432768548022780035>' : '<:p2:1432768554154852542>';
+              }
+            }
             
             questsDescription += `**${index + 1}. ${quest.name}**\n`;
             questsDescription += `${quest.description}\n`;
@@ -1249,7 +1259,17 @@ export default {
             const progress = Math.min(quest.current_progress, quest.target_value);
             const percentage = Math.round((progress / quest.target_value) * 100);
             const filledBars = Math.floor(percentage / 10);
-            const progressBar = '🟩'.repeat(filledBars) + '⬛'.repeat(10 - filledBars);
+            let progressBar = '';
+            for (let i = 0; i < 10; i++) {
+              const isFilled = i < filledBars;
+              if (i === 0) {
+                progressBar += isFilled ? '<:f1:1432768549461426259>' : '<:p1:1432768556688347287>';
+              } else if (i === 9) {
+                progressBar += isFilled ? '<:f3:1432770883851915265>' : '<:p3:1432770532272771183>';
+              } else {
+                progressBar += isFilled ? '<:f2:1432768548022780035>' : '<:p2:1432768554154852542>';
+              }
+            }
             
             questsDescription += `**${index + 1}. ${quest.name}**\n`;
             questsDescription += `${quest.description}\n`;
@@ -1268,7 +1288,7 @@ export default {
           : `Level 13/13 (MAX)`;
         
         const questsText = new TextDisplayBuilder()
-          .setContent(`**🎯 ${clan.name} - Quests**\n-# **Clan Level:** ${levelInfo}\n**Clan Map:** ${mapLevelInfo}\n**Total EXP:** ${clan.experience || 0}\n\n${questsDescription}`);
+          .setContent(`**${clan.name} - Quests**\n-# **Clan Level:** ${levelInfo}\n**Clan Map:** ${mapLevelInfo}\n**Total EXP:** ${clan.experience || 0}\n\n${questsDescription}`);
         
         const separator = new SeparatorBuilder()
           .setDivider(true)

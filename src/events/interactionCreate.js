@@ -24,9 +24,12 @@ import { checkCooldown, setCooldown, createCooldownContainer } from '../utils/co
 import { getMarriageByUser, deleteMarriage } from '../models/MarriageModel.js';
 import { getChildrenByParents, getAdoptionByChild, deleteAdoption, getFamilyByMember } from '../models/AdoptionModel.js';
 import { handleDerpiPagination } from '../utils/derpi/index.js';
+import { handleManebooruPagination } from '../utils/manebooru/manebooruHandler.js';
+import { handleDanbooruPagination } from '../utils/danbooru/danbooruHandler.js';
+import { handleFurbooruPagination } from '../utils/furbooru/furbooruHandler.js';
 import { handleCaseButton } from '../commands/economy/case.js';
 import { handleInventoryInteraction } from '../commands/economy/inventory.js';
-import { handleBundlePreview, handleBundlePurchase, handleElementsOfInsanityButton, handleElementsOfInsanityPurchase, handleBackToShop } from '../commands/premium/premium_shop.js';
+import { handleBundlePreview, handleBundlePurchase, handleUmbrumButton, handleUmbrumPurchase, handleBackToShop } from '../commands/premium/premium_shop.js';
 import { requirePony } from '../utils/pony/index.js';
 import { 
   addBits, 
@@ -499,6 +502,23 @@ Purchase at least two collections to support the bot and unlock exclusive featur
         if (handled) return;
       }
       
+      if (customId.startsWith('unique_prev_') || customId.startsWith('unique_next_') || customId.startsWith('upgrade_lucky_roll_') || customId.startsWith('upgrade_echo_')) {
+        const { handleUniquePonyButton } = await import('../commands/unique/unique_list.js');
+        const handled = await handleUniquePonyButton(interaction);
+        if (handled) return;
+      }
+
+      if (customId.startsWith('friend_confirm_') || customId.startsWith('friend_cancel_') || customId.startsWith('friend_accept_') || customId.startsWith('friend_decline_')) {
+        const { handleFriendButton } = await import('../commands/friends/friend_add.js');
+        const handled = await handleFriendButton(interaction);
+        if (handled) return;
+      }
+      if (customId.startsWith('friend_prev_') || customId.startsWith('friend_next_') || customId.startsWith('friend_remove_')) {
+        const { handleFriendListButton } = await import('../commands/friends/friend_list.js');
+        const handled = await handleFriendListButton(interaction);
+        if (handled) return;
+      }
+      
       if (customId.startsWith('friendship_grid_prev_') || 
           customId.startsWith('friendship_grid_next_') ||
           customId.startsWith('friendship_grid_filter_') ||
@@ -773,12 +793,12 @@ Purchase at least two collections to support the bot and unlock exclusive featur
         return await handleBundlePurchase(interaction);
       }
       
-      if (customId === 'elements_of_insanity_button') {
-        return await handleElementsOfInsanityButton(interaction);
+      if (customId === 'umbrum_button') {
+        return await handleUmbrumButton(interaction);
       }
       
-      if (customId.startsWith('purchase_elements_of_insanity_')) {
-        return await handleElementsOfInsanityPurchase(interaction);
+      if (customId.startsWith('purchase_umbrum_')) {
+        return await handleUmbrumPurchase(interaction);
       }
       
       if (customId.startsWith('back_to_shop_')) {
@@ -995,6 +1015,12 @@ Purchase at least two collections to support the bot and unlock exclusive featur
         return;
       }
 
+      if (customId.startsWith('upgrade_lucky_roll_')) {
+        const { handleUpgradeButton } = await import('../commands/unique/unique_list.js');
+        await handleUpgradeButton(interaction);
+        return;
+      }
+
 
       if (customId.startsWith('divorce_') || 
           customId.startsWith('abandon_adoption_') ||
@@ -1044,6 +1070,25 @@ Purchase at least two collections to support the bot and unlock exclusive featur
         return;
       }
       
+      if (customId.startsWith('manebooru_prev_') || customId.startsWith('manebooru_next_')) {
+        await handleManebooruPagination(interaction);
+        return;
+      }
+      
+      if (customId.startsWith('danbooru_prev_') || customId.startsWith('danbooru_next_')) {
+        await handleDanbooruPagination(interaction);
+        return;
+      }
+      
+      if (customId.startsWith('furbooru_prev_') || customId.startsWith('furbooru_next_')) {
+        await handleFurbooruPagination(interaction);
+        return;
+      }
+      
+      if (customId.startsWith('uwuify_regen_') || customId.startsWith('uwuify_copy_') || customId.startsWith('uwuify_share_')) {
+        await handleUwuifyButtons(interaction);
+        return;
+      }
 
       if (customId.startsWith('claim_breeding_')) {
         const { handleClaimBreeding } = await import('../commands/economy/breed.js');
@@ -2192,6 +2237,105 @@ async function handleClanInviteButtons(interaction) {
         title: '❌ Error',
         description: 'An error occurred while processing your response.',
         color: 0xFF0000
+      })],
+      ephemeral: true
+    });
+  }
+}
+
+async function handleUwuifyButtons(interaction) {
+  try {
+    const customId = interaction.customId;
+    const userId = customId.split('_')[2];
+    
+    if (interaction.user.id !== userId) {
+      return interaction.reply({
+        embeds: [createEmbed({
+          title: "🚫 Access Denied",
+          description: "Only the original user can use these buttons! uwu",
+          color: 0xED4245
+        })],
+        ephemeral: true
+      });
+    }
+    
+    if (customId.startsWith('uwuify_regen_')) {
+      const originalText = global.uwuifyCache?.[userId];
+      if (!originalText) {
+        return interaction.reply({
+          embeds: [createEmbed({
+            title: "⏰ Session Expired",
+            description: "The uwuify session has expired! Pwease use the command again~",
+            color: 0xFF9500
+          })],
+          ephemeral: true
+        });
+      }
+      
+      const { uwuifyText, detectLanguage } = await import('../commands/utility/utility_uwuify.js');
+      const newUwuText = uwuifyText(originalText);
+      const language = detectLanguage(originalText);
+      const languageFlag = language === 'ru' ? '🇷🇺' : '🇺🇸';
+      const languageName = language === 'ru' ? 'Russian' : 'English';
+      
+      const newEmbed = createEmbed({
+        title: "🔄 UwU Regenerated! ✨",
+        description: `${languageFlag} **Language:** ${languageName}\n🎀 **Cuteness Level:** Maximum`,
+        fields: [
+          {
+            name: "📝 Original Message", 
+            value: originalText.length > 500 ? `\`\`\`${originalText.substring(0, 500)}...\`\`\`` : `\`\`\`${originalText}\`\`\``,
+            inline: false
+          },
+          {
+            name: "🌸 New UwUified Result",
+            value: newUwuText.length > 500 ? `\`\`\`${newUwuText.substring(0, 500)}...\`\`\`` : `\`\`\`${newUwuText}\`\`\``,
+            inline: false
+          }
+        ],
+        color: 0xFF1493,
+        thumbnail: { url: 'https://cdn.discordapp.com/emojis/887361306925232179.png' },
+        footer: { text: "UwU Regenerated • Even more uwus!" }
+      });
+      
+      await interaction.update({ embeds: [newEmbed] });
+      
+    } else if (customId.startsWith('uwuify_copy_')) {
+      const originalEmbed = interaction.message.embeds[0];
+      const uwuifiedText = originalEmbed.fields[1]?.value?.replace(/```/g, '') || 'Error getting text';
+      
+      await interaction.reply({
+        embeds: [createEmbed({
+          title: "📋 UwU Text Ready!",
+          description: `Here's your uwuified text ready to copy:\n\n\`\`\`${uwuifiedText}\`\`\``,
+          color: 0x00FF00,
+          footer: { text: "Copy the text above and paste anywhere! uwu" }
+        })],
+        ephemeral: true
+      });
+      
+    } else if (customId.startsWith('uwuify_share_')) {
+      const originalEmbed = interaction.message.embeds[0];
+      const uwuifiedText = originalEmbed.fields[1]?.value?.replace(/```/g, '') || 'Error getting text';
+      
+      await interaction.reply({
+        content: `💖 ${interaction.user.username} wants to share their uwu transformation:\n\n${uwuifiedText}`,
+        embeds: [createEmbed({
+          title: "✨ Shared UwU Magic ✨", 
+          description: "Someone shared their cute uwu transformation with everyone!",
+          color: 0xFF69B4,
+          footer: { text: "Made with the UwU Transformer • Spread the cuteness!" }
+        })]
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error handling uwuify buttons:', error);
+    await interaction.reply({
+      embeds: [createEmbed({
+        title: "💥 Button Error",
+        description: "Something went wwong with the button! >_<",
+        color: 0xED4245
       })],
       ephemeral: true
     });

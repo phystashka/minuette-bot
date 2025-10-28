@@ -172,7 +172,7 @@ export const execute = async (message) => {
 
         if (message.content.startsWith('.spawn')) {
           const args = message.content.slice(6).trim().split(/ +/);
-          const { handleSpawnCommand } = await import('../commands/management/spawn.js');
+          const { handleSpawnCommand } = await import('../commands/owner/spawn.js');
           await handleSpawnCommand(message, args);
           return;
         }
